@@ -1,0 +1,6 @@
+; Glass_Plugin_Izolux.def : Declares the module parameters for the DLL.
+
+LIBRARY  "Glass_Plugin_Izolux"
+
+EXPORTS
+  PluginCreateObject     PRIVATE
