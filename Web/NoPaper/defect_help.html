@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="css/navigation.css" />
+  <title>Справка</title>
+</head>
+
+<body style="padding-bottom: 40px;">
+  <nav>
+    <ul class="links-items">
+      <li>
+        <a href="workplace.aspx" class="link">
+          Рабочее место
+        </a>
+      </li>
+      <li>
+        <a href="SawPlan.aspx" class="link">
+          План работы
+        </a>
+      </li>
+      <li>
+        <a href="Defect.aspx" class="link">
+          Брак
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <main style="position: relative; top: 40px; padding: 0 20px; font-size: 18px;">
+    <h1 class="head1">Инструкция по выбраковке стекол и стеклопакетов</h1>
+    <p>На странице <code>"Брак"</code> расположены следующие элементы:</p>
+    <ol>
+      <li>
+        <h3>Секция выбора фактического брака:</h3>
+        Эта секция включает в себя выпадающие списки для выбора:
+        <div style="display: flex; align-items: center; ">
+          <img src="img/hlp/defect-menu.png" alt="">
+          <ul>
+            <li>Вид Акта</li>
+            <li>Место обнаружения</li>
+            <li>Вид брака</li>
+            <li>Наименование Брака</li>
+            <li>Виды издержек</li>
+          </ul>
+        </div>
+        Пользователь может выбрать значения из существующих списков, которые будут применены к отсканированному
+        штрих-коду.
+      </li>
+      <li  style="padding-top: 10px;">
+        <h3>Секция ввода штрих-кода:</h3>
+        В этой секции находится поле для ввода штрих-кода стекла или стеклопакета.
+        <img src="img/hlp/defect-input.png" alt="" height="20px"> <br>
+        Штрих-код может быть введён вручную или отсканирован при помощи сканера.
+        После ввода штрих-кода необходимо нажать кнопку <img src="img/hlp/defect-accept.png" alt="" height="18px"> или клавишу Enter.
+      </li>
+    </ol>
+    <div style="padding-left: 40px;">
+    <p>
+        Если введённый штрих-код обработан без ошибок, в правом верхнем углу экрана появится сообщение <code>"Операция выполнена"</code>.<br>
+        Если произошли ошибки, появится сообщение <code>"Операция не выполнена"</code>.
+    </p>
+    <p>
+      После успешного выполнения браковки штрих-кода, на странице <code>"Рабочее место"</code> позиции, помеченные как бракованные,
+      будут выделены красным цветом.
+      <img src="img/hlp/defect-row.png" alt="" width="100%" style="margin-top: 10px;">
+    </p>
+    <p>
+      Для просмотра состояния переделки стекла нажмите кнопку: <img src="img/hlp/info-button.png" alt=""><br>
+      Откроется диалоговое окно
+    </p>
+      <img src="img/hlp/info.png" alt="">
+
+      <p>Данное окно содержит следующую информацию:</p>
+    <ul>
+      <li>Информация о переделке стекла</li>
+      <li>Размер стекла</li>
+      <li>Расположение - участок, на котором сейчас находится стекло</li>
+      <li>Заказ и дата заказа</li>
+      <li>Раскрой и дата</li>
+      <li>Количество</li>
+      <li>Площадь</li>
+    </ul>
+    <p>
+      Данная информация позволяет отслеживать текущий статус переделки и узнать все необходимые детали о состоянии
+      стекла.
+    </p>
+  </div>
+  </main>
+</body>
+
+</html>
