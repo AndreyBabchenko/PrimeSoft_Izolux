@@ -1,0 +1,110 @@
+﻿.pyramid-draw {
+  position: absolute;
+
+  top: 100px;
+  width: 90%;
+  height: 100px;
+
+  overflow: hidden;
+
+  background: white;
+  border: 1px solid gray;
+
+  z-index: 1;
+}
+
+.pyramid-draw-section {
+  display: flex;
+  justify-content: center;
+
+  margin: 0 auto;
+  width: 80%;
+}
+
+.pyramid-take,
+.pyramid-put {
+    font-size: 12px;
+}
+
+.pyramid-take,
+.pyramid-put {
+  display: flex;
+  padding: 2px 5px;
+  margin: 0 20px;
+
+  height: 98px;
+  background: rgba(28, 170, 214, 0.5);
+}
+
+.pyramid-items {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  row-gap: 1px;
+}
+
+.nPack {
+  position: relative;
+  display: flex;
+  margin: 3px 0;
+}
+
+.nPack.flex-end{
+  justify-content: flex-end;
+}
+
+.center-line {
+  position: relative;
+  height: 120px;
+  width: 5px;
+  opacity: 0.7;
+
+  margin: 0 10px;
+  
+  background: darkgreen;
+}
+
+.center-line._add_margin {
+ margin-right: 50px;
+}
+
+  .row-glass {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    column-gap: 5px;
+  }
+
+.side-num_text {
+  display: none;
+  align-items: center;
+  text-align: center;
+}
+
+.side-num_text.active {
+  display: flex;
+}
+
+.side-two {
+  margin-left: 7px;
+}
+
+.glass-order {
+  display: none;
+  position: absolute;
+  left: -10px;
+}
+
+.glass-order.selected {
+  display: block;
+}
+
+.selected {
+  background: yellow !important;
+}
+
+.no-active {
+  display: none;
+}

@@ -1,0 +1,42 @@
+﻿/* Grid header*/
+header {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  column-gap: 20px;
+  width: 100%;
+  padding: 10px 0;
+  top: 40px;
+  left:0;
+  z-index: 9;
+  background: white;
+}
+
+.header-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.item__label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+  font-size: 24px;
+}
+
+.item__label_small {
+  font-size: 18px;
+}
+
+.update-panel {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+}
+
+.update-panel .item {
+  display: flex;
+  flex-direction: column;
+}

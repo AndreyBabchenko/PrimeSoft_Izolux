@@ -1,0 +1,70 @@
+﻿.message {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  right: -560px;
+  top: 50px;
+  z-index: 9;
+  
+  width: 380px;
+  height: 200px;
+  background: white;
+  overflow: hidden;
+
+  border: 1px solid #aaa;
+  border-radius: 20px;
+  transition: right 0.5s;
+  font-size: 24px;
+
+  padding: 5px;
+  padding-left: 62px;
+  text-align: center;
+}
+
+.message.show {
+  right: 10px;
+}
+
+.message::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 10px; /* Отступ слева от текста */
+  width: 48px;
+  height: 48px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: translateY(-50%); /* Центрирует иконку по вертикали */
+}
+
+.message.success::before {
+  background-image: url('../images/success.png'); /* Путь к иконке галочки */
+}
+
+.message.error::before {
+  background-image: url('../images/fail.png'); /* Путь к иконке крестика */
+}
+
+
+.message::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+
+  border-radius: 20px;
+
+  width: 100%;
+  height: 8px;
+}
+
+.message.success::after {
+  background: green;
+}
+
+.message.error::after {
+  background: red;
+}

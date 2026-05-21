@@ -1,0 +1,49 @@
+﻿body {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.navmenu {
+    margin: 15px;
+}
+
+.navmenu ul {
+    display: flex;
+}
+
+.navmenu li  {
+    list-style-type: none;
+    margin-right: 20px;
+}
+
+.navmenu a {
+    font-size: 22px;
+    text-decoration: none;
+}
+
+.big 
+{
+    font-size: 22px;	
+}
+
+table {
+  text-align: center;
+}
+
+
+.td {
+  padding: 0;
+}
+
+.form {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0;
+}

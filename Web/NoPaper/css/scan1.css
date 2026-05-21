@@ -1,0 +1,111 @@
+﻿:root {
+  /* Переменные для шрифтов */
+  --font-size-label: 64px;  /* размер шрифт для надписей*/
+  --font-size-combo: 64px;  /* размер шрифт для комбобокса*/
+  --font-size-button: 64px; /* размер шрифт для кнопки*/
+  --font-size-grid:   48px; /* размер шрифта в таблице */
+  --font-size-info:   32px; /* размер обобщенной информации */
+  /* Переменные для размеров */
+  --dropdown-height: 160px; /* высота комбобокса*/
+  --dropdown-width: 900px; /* ширина комбобокса*/
+  --button-height: 160px;   /* высота кнопки    */
+  --button-width: 500px;   /* ширина кнопки    */
+}
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+header {
+  padding: 20px;
+}
+
+.select-operator p {
+  font-size: var(--font-size-label);
+}
+
+.operator-dropdown {
+  height: var(--dropdown-height);
+  width: var(--dropdown-width);
+  font-size: var(--font-size-combo);
+}
+
+.info {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.info-label {
+  color: #FF0000;
+  font-size: var(--font-size-label);
+}
+
+.barcode-input .barcode-textbox {
+  font-size: var(--font-size-label);
+}
+
+.submit-button {
+  height: var(--button-height);
+  width: var(--button-width);
+  font-size: var(--font-size-button);
+  margin-top: 0;
+}
+
+.gridview,
+.temp-gridview {
+  background-color: white;
+  border-color: #CC9966;
+  border-style: none;
+  border-width: 1px;
+  font-size: var(--font-size-grid);
+}
+
+/* последняя строка таблицы */
+.grid-footer {
+  background-color: #FFFFCC;
+  color: #330099;
+}
+
+/* шапка таблицы */
+.grid-header {
+  background-color: #990000;
+  font-weight: bold;
+  color: #FFFFCC;
+}
+
+.grid-pager {
+  background-color: #FFFFCC;
+  color: #330099;
+  text-align: center;
+}
+
+/* строка таблицы */
+.grid-row {
+  background-color: white;
+  color: #330099;
+}
+
+/* выделенная строка */
+.row-selected {
+  background-color: #FFCC66;
+  font-weight: bold;
+  color: #663399;
+}
+
+/*Счетчик баркодов в ожидании на повторную отправку*/
+.count-failed-barcode {
+  display: block;
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  border: solid;
+  border-color: darkred;
+  border-radius: 15px;
+  padding: 10px;
+
+  font-size: var(--font-size-info);
+}
+
+.count-failed-barcode.hide {
+  display: none;
+}

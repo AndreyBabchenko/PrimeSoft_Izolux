@@ -1,0 +1,81 @@
+/*sort arrow*/
+.span-arrow {
+  position: relative;
+  left: 10px;
+}
+
+.arrow {
+  display: flex;
+  padding: 0 10px;
+  gap: 5px;
+  visibility: hidden;
+  position: relative;
+  left: 20px;
+  cursor: pointer;
+  width: 10px;
+  height: 10px;
+}
+
+  .arrow._show {
+    visibility: visible;
+  }
+
+.arrow-left {
+  position: absolute;
+  background: transparent;
+  top: 5px;
+  left: 0;
+  width: 10px;
+  height: 5px;
+  display: block;
+  transform: rotate(35deg);
+  border-radius: 1px;
+}
+
+  .arrow-left:after {
+    content: "";
+    background: black;
+    width: 10px;
+    height: 5px;
+    display: block;
+    border-radius: 1px 3px;
+    transition: all 0.5s cubic-bezier(0.25, 1.7, 0.35, 0.8);
+    z-index: -1;
+  }
+
+.arrow-right {
+  position: absolute;
+  background: transparent;
+  top: 5px;
+  left: 5px;
+  width: 10px;
+  height: 5px;
+  display: block;
+  transform: rotate(-35deg);
+  border-radius: 1px;
+}
+
+  .arrow-right:after {
+    content: "";
+    background: black;
+    width: 10px;
+    height: 5px;
+    display: block;
+    border-radius: 3px 1px;
+    transition: all 0.5s cubic-bezier(0.25, 1.7, 0.35, 0.8);
+    z-index: -1;
+  }
+
+.open .arrow-left:after {
+  transform-origin: center center;
+  transform: rotate(-70deg);
+}
+
+.open .arrow-right:after {
+  transform-origin: center center;
+  transform: rotate(70deg);
+}
+
+.ddList {
+  width: 100px;
+}
