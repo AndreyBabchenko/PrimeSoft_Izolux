@@ -241,7 +241,6 @@
     <Content Include="css\workplace.css" />
     <Content Include=".editorconfig" />
     <Content Include="Site.Master" />
-    <Content Include="Test_Plan.md" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
