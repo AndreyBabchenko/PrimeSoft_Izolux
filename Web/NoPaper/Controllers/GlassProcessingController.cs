@@ -12,19 +12,20 @@ using System.Xml.Linq;
 using AjaxControlToolkit;
 using Utils;
 using log4net;
+using System.Collections;
 
 namespace NoPaper.Controllers
 {
   internal class GlassProcessingController : SPIDInfo
   {
-    private SqlConnection         _conn;
-    private List<SawTaskInfo>     _sawTasks;
+    private SqlConnection      _conn;
+    private List<SawTaskInfo>  _sawTasks;
 
-    private static readonly ILog  log = LogManager.GetLogger(typeof(GlassProcessingController));
+    private static readonly ILog log = LogManager.GetLogger(typeof(GlassProcessingController));
 
     public GlassProcessingController(SqlConnection conn)
     {
-      _conn     = conn;
+      _conn = conn;
       _sawTasks = new List<SawTaskInfo>();
       InitializeSPID(_conn);
     }
@@ -50,19 +51,19 @@ namespace NoPaper.Controllers
     private void InitializeSawTaskInfo(string nameSawTask, SectorManufactInfo sector)
     {
       string      commandText = nameSawTask != ""
-                                ? SawTaskMainData.GetDataByNameSawTask      (nameSawTask)
-                                : SawTaskMainData.GetAllReadyToTransportData(sector);
+                              ? SawTaskMainData.GetDataByNameSawTask(nameSawTask)
+                              : SawTaskMainData.GetAllReadyToTransportData(sector);
       SqlCommand  command     = new SqlCommand(commandText, _conn);
       int         nSawTask    = 0;
 
       using (SqlDataReader reader = command.ExecuteReader())
       {
-        while ( reader.Read() )
+        while(reader.Read())
         {
           _sawTasks.Add(new SawTaskInfo()
           {
-            ID          = Convert.ToInt32(reader["ID"  ].ToString()),
-            NameSawTask =                 reader["Name"].ToString()
+            ID          = Convert.ToInt32(reader["ID"].ToString()),
+            NameSawTask = reader["Name"].ToString()
           });
 
           // Гигансткие списки не создаём. Хватит и 50 последних раскроев.
@@ -72,7 +73,7 @@ namespace NoPaper.Controllers
         }
 
         // Проверим заполнился ли наш лист
-        if ( _sawTasks.Count == 0 )
+        if (_sawTasks.Count == 0)
         {
           // Если был пустой создадим пока нулевой SawTask во избежании ошибки
           _sawTasks.Add(new SawTaskInfo()
@@ -126,7 +127,7 @@ namespace NoPaper.Controllers
                                        inner join GlassDetails GD on GD.ID = GP.idGlassDetails
                                        where 1 = 1 {sAddFilter}
                                 ) as innerQuery                                               
-                              where idSawTaskMain = {idSawTask}                                       
+                              where idSawTaskMain = {idSawTask}                                     
                               order by                                                        
                                 idPiramid,                                                    
                                 idGlassDetails,                                               
@@ -314,7 +315,7 @@ namespace NoPaper.Controllers
         }
       }
       catch (Exception ex)
-      { 
+      {
         log.Error(ex.Message);
       }
       finally // Пробуем обновить idGlassProcessingPyramid несмотря на возможные проблемы парковки
@@ -347,6 +348,7 @@ namespace NoPaper.Controllers
 
         if (ExecuteTransactionFillGlassProcessing(idSawTask)) // Вызов транзакции произошел успешно sp_FillGlassProcessing
           PiramidParking(idSawTask, sFilter);
+        
       }
       catch (Exception ex)
       {
@@ -422,6 +424,7 @@ namespace NoPaper.Controllers
 
     public bool MakeOper(GlassDetailsOper glassOper, int idScanPyramid)
     {
+      SqlCommand command = new SqlCommand();
       try
       {
         log.Info($"Пометить деталь как готовую");
@@ -437,7 +440,7 @@ namespace NoPaper.Controllers
              finishedCount    = 1;
         int? idPyramidBarCode = null;
 
-        SqlCommand command = new SqlCommand($@"select 
+        command = new SqlCommand($@"select 
                                                  count(*) as glassCount,
                                                  sum
                                                  (
@@ -518,12 +521,14 @@ namespace NoPaper.Controllers
         log.Error(ex.Message);
       }
 
+      command.Dispose();
       return true;
     }
 
     // Помечаем в внутрецеховой логистике СП как готовый
     public void MakeOperSP(GlassDetailsOper glassOper, bool isBindToSector = false, int idScanPyramid = 0)
     {
+      SqlCommand command = new SqlCommand();
       try
       {
         log.Info("Пометка штрихкода СП как готового");
@@ -545,23 +550,23 @@ namespace NoPaper.Controllers
 
         log.Info("Перед пометкой о готовности");
         string commandText = $@"update GlassProcessing set 
-                                  TimeProcessingComplete = GetDate(),
-                                  TimeMarkManufact       = GetDate(),
-                                  bFinished              = 1,
-                                  idSheduleOperator      = {glassOper.operatorInfo.idSheduleOperator}
-                                from GlassProcessing                                                         
-                                     inner join GlassDetails on GlassProcessing.idGlassDetails = GlassDetails.ID  
-                                where idBarCode in ({glassOper.idBarCode})";
+                               TimeProcessingComplete = GetDate(),
+                               TimeMarkManufact       = GetDate(),
+                               bFinished              = 1,
+                               idSheduleOperator      = {glassOper.operatorInfo.idSheduleOperator}
+                             from GlassProcessing                                                         
+                               inner join GlassDetails on GlassProcessing.idGlassDetails = GlassDetails.ID  
+                             where idBarCode in ({glassOper.idBarCode})";
 
         log.Info("штризх-код помечен как готовый");
 
         commandText += isBindToSector ? $"and idSectorManufact = {glassOper.sectorManufact.ID}" : "";
 
-        SqlCommand command = new SqlCommand(commandText, _conn);
+        command = new SqlCommand(commandText, _conn);
         command.ExecuteNonQuery();
 
         // Если провели сканирование на этапе сборки, тогда выставим внутрицеховую пирамиду
-        if ( idScanPyramid != 0 )
+        if (idScanPyramid != 0)
         {
           command.CommandText = $"update GlassProcessingPyramid set idPyramidBarCode = {idScanPyramid} where ID = {glassOper.sIdGlassProcessingPyramidList}";
           command.ExecuteNonQuery();
@@ -570,6 +575,10 @@ namespace NoPaper.Controllers
       catch (Exception ex)
       {
         log.Error(ex.Message);
+      }
+      finally
+      {
+        command.Dispose();
       }
     }
 
@@ -619,6 +628,7 @@ namespace NoPaper.Controllers
 
     public bool MakePyramid(OperatorInfo operatorInfo, string sIdGlassProcessingPyramidList, int idPyramid, int scanIDPyramid, SectorManufactInfo sector)
     {
+      SqlCommand command = new SqlCommand();
       try
       {
         log.Info($"Помечаем готовность пирамиды");
@@ -635,7 +645,7 @@ namespace NoPaper.Controllers
         //  RebuildGlassProcessingPyramidOnPyramid();
 
         // Проверяем введен ли штрих код у данной пирамиды
-        SqlCommand command = new SqlCommand($"select ID, idPyramidBarCode from GlassProcessingPyramid where ID in ({sIdGlassProcessingPyramidList})", _conn);
+        command = new SqlCommand($"select ID, idPyramidBarCode from GlassProcessingPyramid where ID in ({sIdGlassProcessingPyramidList})", _conn);
 
         List<int>    idGlassProcessingPyramidList = new List<int>();
         List<object> results                      = new List<object>();
@@ -704,6 +714,10 @@ namespace NoPaper.Controllers
         log.Error(ex.Message);
         return false;
       }
+      finally
+      {
+        command.Dispose();
+      }
     }
 
     public void WritePyramidBarCode(int? idGlassProcessingPyramid, string pyramidBarCode)
@@ -712,22 +726,39 @@ namespace NoPaper.Controllers
                                                 idPyramidBarCode = (select ID from PyramidBarCode where BarCode = '{pyramidBarCode}') 
                                               where ID = {idGlassProcessingPyramid}", 
                                            _conn);
-      command.ExecuteNonQuery();
-    }
-
-    public void WritePyramidBarCode(string sIdGlassProcessingPyramidList, string pyramidBarCode)
-    {
       try
       {
-        SqlCommand  command = new SqlCommand($@"update GlassProcessingPyramid set
-                                                  idPyramidBarCode = (select ID from PyramidBarCode where BarCode = '{pyramidBarCode}') 
-                                                where ID in ({sIdGlassProcessingPyramidList})",
-                                             _conn);
+        command.ExecuteNonQuery();
+      }
+      finally
+      {
+        command.Dispose();
+      }
+    }
+     
+    public void WritePyramidBarCode(string sIdGlassProcessingPyramidList, string pyramidBarCode)
+    {
+      if (String.IsNullOrEmpty(sIdGlassProcessingPyramidList))
+        return;
+
+      SqlCommand  command = new SqlCommand($@"update GlassProcessingPyramid set
+                                                idPyramidBarCode = (select ID from PyramidBarCode where BarCode = @PyramidBarCode) 
+                                              where ID in ({sIdGlassProcessingPyramidList})", 
+                                            _conn);
+
+      command.Parameters.AddWithValue("@PyramidBarCode", pyramidBarCode);
+
+      try
+      {
         command.ExecuteNonQuery();
       }
       catch
       {
 
+      }
+      finally
+      {
+        command.Dispose();
       }
     }
 
@@ -739,6 +770,7 @@ namespace NoPaper.Controllers
                                              where ID = {idGlassProcessingPyramid}", 
                                           _conn);
       command.ExecuteNonQuery();
+      command.Dispose();
     }
 
     public bool CheckBarCode(string pyramidBarCode, Action<string, bool> showMessage, Action focusNextTextBox, Action<string> focusGlassTextBox, GlassDetailsOper glassDetailsOper)
@@ -793,13 +825,27 @@ namespace NoPaper.Controllers
 
     public void MakeTempTable(SectorManufactInfo sector)
     {
-      string commandText = sector.nType != 2
-                  ? GlobalTempData.MakeData(_SPID, $"idSawTaskMain          in ({GetSListIdSawTask()})")
-                  : GlobalTempData.MakeData(_SPID, $"idSawTaskMain_Assembly in ({GetSListIdSawTask()})");
+      string filter      = sector.nType != 2
+                         ? $"idSawTaskMain in ({GetSListIdSawTask()})"
+                         : $"idSawTaskMain_Assembly in ({GetSListIdSawTask()})",
+             commandText = GlobalTempData.MakeData(_SPID, filter);
       
-      log.Info($"Создание временой таблицы: \r\n {commandText}");
-      SqlCommand command = new SqlCommand(commandText, _conn);
-      command.ExecuteNonQuery();
+      log.Debug($"Создание временой таблицы: \r\n {commandText}");
+
+      using (SqlCommand command = new SqlCommand(commandText, _conn))
+        command.ExecuteNonQuery();
+
+      if (sector.nType == 2)
+      {
+        string checkSQL = $"select top 1 1 from ##TempGlassProcessing{_SPID} where {filter}";
+        using (SqlCommand command = new SqlCommand(checkSQL, _conn))
+        {
+          var res = command.ExecuteScalar();
+
+          if (res == null)
+            throw new InvalidOperationException("Сборка не назначена, дайте команду \"Переместить сборку в этот раскрой\"");
+        }
+      }
     }
 
     public SawTaskInfo GetSawTask()
@@ -817,18 +863,23 @@ namespace NoPaper.Controllers
     /// <param name="idEquipment">Идентификатор оборудования.</param>
     /// <param name="sortExpression">Выражение для сортировки данных в таблице.</param>
     /// <returns>Возвращает таблицу данных, содержащую операции.</returns>
-    public DataTable GetTableOper(SectorManufactInfo sector, string sWhereAdd, int idEquipment, string sortExpression)
+    public DataTable GetTableOper(SectorManufactInfo sector, string sWhereAdd, Equipment equipment, string sortExpression)
     {
       // Загрузка всех деталей у которых bFinished != 1
       string     query           = "",
                  sListIdSawTask  = GetSListIdSawTask(),
-                 sEquipmentWhere = idEquipment != 0 ? $"and E.ID = {idEquipment}" : "";
+                 sEquipmentWhere = "";
+
+      if (equipment.typeEquipment == TypeEquipment.e_assembly)
+        sEquipmentWhere = equipment.ID != 0 ? $"and temp.idAssemblyLine = {equipment.ID}" : "";
+      else
+        sEquipmentWhere = equipment.ID != 0 ? $"and E.ID = {equipment.ID}" : "";
 
       query = sector.nType == 2 
             ? AssemblyData. GetData(sListIdSawTask, sector.ID, _SPID, sWhereAdd, sEquipmentWhere, sortExpression)
             : TableOperData.GetData(sListIdSawTask, sector,    _SPID, sWhereAdd, sEquipmentWhere, sortExpression);
 
-      log.Info($"Создание таблицы: \r\n {query}");
+      log.Debug($"Создание таблицы: \r\n {query}");
 
       using (SqlCommand command = new SqlCommand(query, _conn))
       {
@@ -842,20 +893,23 @@ namespace NoPaper.Controllers
       }
     }
 
-    public DataTable GetTableOperReady(int idSector, int idEquipment, string sWhereAdd = "")
+    public DataTable GetTableOperReady(Equipment equipment, string sWhereAdd = "")
     {
       //string sEquipmentWhere = idEquipment != 0 ? $"and E.ID = {idEquipment}" : "";
 
       // Загрузка только пирамид готовых к перемещению
-      SqlCommand command = new SqlCommand(TableOperReadyData.GetData(GetSListIdSawTask(), idSector, _SPID, sWhereAdd), _conn);
-
-      log.Info($"Создание готовности пирамид: \r\n {command.CommandText}");
-      using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+      using (SqlCommand command = new SqlCommand(TableOperReadyData.GetData(GetSListIdSawTask(), _SPID, sWhereAdd), _conn))
       {
-        DataSet dataSet = new DataSet();
-        adapter.Fill(dataSet);
-        return dataSet.Tables[0];
+
+        log.Debug($"Создание готовности пирамид: \r\n {command.CommandText}");
+        using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+        {
+          DataSet dataSet = new DataSet();
+          adapter.Fill(dataSet);
+          return dataSet.Tables[0];
+        }
       }
+
     }
   }
 }

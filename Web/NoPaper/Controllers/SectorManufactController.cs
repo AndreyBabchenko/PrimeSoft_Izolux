@@ -11,10 +11,10 @@ namespace NoPaper.Controllers
 {
   internal class SectorManufactController
   {
-    private SqlConnection            _conn;
+    private SqlConnection _conn;
     private List<SectorManufactInfo> _sectorManufactList;
 
-    public List<SectorManufactInfo>  GetSectorManufactInfo => _sectorManufactList;
+    public List<SectorManufactInfo> GetSectorManufactInfo => _sectorManufactList;
 
     public SectorManufactController(SqlConnection conn)
     {
@@ -44,8 +44,8 @@ namespace NoPaper.Controllers
         while (reader.Read())
         {
           SectorManufactInfo sector = new SectorManufactInfo(
-            _ID:    SafeConvert.ToInt(reader["ID"   ].ToString()),
-            _nType: SafeConvert.ToInt(reader["nType"].ToString()),
+            _ID:           SafeConvert.ToInt(reader["ID"   ].ToString()),
+            _nType:        SafeConvert.ToInt(reader["nType"].ToString()),
             _Name:         reader["Name"].ToString(),
             _bChangeOrder: SafeConvert.ToBool(reader["bChangeOrder"]));
 
@@ -74,7 +74,7 @@ namespace NoPaper.Controllers
             _bChangeOrder: SafeConvert.ToBool(reader["bChangeOrder"]));
 
         _sectorManufactList.Add(sector);
-    }
+      }
     }
 
     public void InitializeSectorManufactBy_nType(int nType)
@@ -88,16 +88,18 @@ namespace NoPaper.Controllers
                                                  from SectorManufact
                                                  where nType = {nType}",
                                               _conn);
-      SqlDataReader  reader = command.ExecuteReader();
-      if (reader.Read())
+      using (SqlDataReader reader = command.ExecuteReader())
       {
-        SectorManufactInfo sector = new SectorManufactInfo(
-            _ID:    Convert.ToInt32(reader["ID"   ].ToString()),
-            _nType: Convert.ToInt32(reader["nType"].ToString()),
-            _Name:  reader["Name"].ToString(),
-            _bChangeOrder: SafeConvert.ToBool(reader["bChangeOrder"]));
+        if (reader.Read())
+        {
+          SectorManufactInfo sector = new SectorManufactInfo(
+              _ID:    Convert.ToInt32(reader["ID"   ].ToString()),
+              _nType: Convert.ToInt32(reader["nType"].ToString()),
+              _Name:  reader["Name"].ToString(),
+              _bChangeOrder: SafeConvert.ToBool(reader["bChangeOrder"]));
 
-        _sectorManufactList.Add(sector);
+          _sectorManufactList.Add(sector);
+        }
       }
     }
 

@@ -114,22 +114,22 @@ namespace NoPaper
     protected global::System.Web.UI.WebControls.SqlDataSource SqlDSTypeExpense;
 
     /// <summary>
-    /// IDOperator_Guilty control.
+    /// IDPersonnel_Guilty control.
     /// </summary>
     /// <remarks>
     /// Auto-generated field.
     /// To modify move field declaration from designer file to code-behind file.
     /// </remarks>
-    protected global::System.Web.UI.WebControls.DropDownList IDOperator_Guilty;
+    protected global::System.Web.UI.WebControls.DropDownList IDPersonnel_Guilty;
 
     /// <summary>
-    /// SQLOperatorGuilty control.
+    /// SQLPersonnelGuilty control.
     /// </summary>
     /// <remarks>
     /// Auto-generated field.
     /// To modify move field declaration from designer file to code-behind file.
     /// </remarks>
-    protected global::System.Web.UI.WebControls.SqlDataSource SQLOperatorGuilty;
+    protected global::System.Web.UI.WebControls.SqlDataSource SQLPersonnelGuilty;
 
     /// <summary>
     /// IDRejectComment control.

@@ -124,11 +124,19 @@ const BarcodeInput = async (event) => {
 
     await fetchScanLogs(); // Отрисуем таблицу
 
+    // отсканирована транспотрная пирамида
+    if (jsonStr.typeBarCode === 2)
+    {
+      const ScanTextValue = document.getElementById('pyramid-complete-barcode-now');
+      if (ScanTextValue) ScanTextValue.innerText = barCodeText;
+    }
+
     if (jsonStr.currentMassIsBigger && textInfoElement)
       if (jsonStr.m_dPyramidMaxWeight > 0)
         textInfoElement.innerText += `\r\n Текущая масса ${jsonStr.m_dCurrentWeight} превышает допустимую массу пирамиды ${jsonStr.m_dPyramidMaxWeight}`;
 
     barCodeElement.value = '';
+    barCodeElement.focus();
 
   } catch (error) {
     console.error('Error for post barcode:', error);
@@ -141,24 +149,90 @@ const BarcodeInput = async (event) => {
     });
 
     barCodeElement.value = '';
+    barCodeElement.focus();
     UpdateDefectBarcodeCounter(failedRequests.length);
 
     // Записываем обновленный массив в LocalStorage
     localStorage.setItem('failedRequests', JSON.stringify(failedRequests));
   }
 };
+
+
+const PyramidToShip = async (event) => {
+  if (event)
+    event.preventDefault(); // Останавливаем стандартное поведение формы
+
+  const barCodeElement = document.getElementById('BarCode');
+
+  // Получаем idPyramidCompleted из LocalStorage
+  const idPyramidCompleted = parseInt(localStorage.getItem('idPyramidCompleted'), 10) || 0;
+
+  try
+  {
+    const response = await fetch('scan1.aspx/PostPyramidCompleteToShip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idPyramidComplete: idPyramidCompleted
+      })
+    });
+
+    if (!response.ok)
+      throw new Error(`Ошибка при отправке PostPyramidCompleteToShip`);
+
+
+    const data = await response.json();
+    const jsonStr = data.d;
+
+    const textInfoElement = document.getElementById('TextInfo');
+    if (textInfoElement) textInfoElement.innerText = jsonStr.message;
+
+    // Сбрасываем idPyramidComplete
+    localStorage.setItem('idPyramidCompleted', jsonStr.idPyramidCompleted);
+
+    clearScanLogsTable();
+
+    barCodeElement.value = '';
+    barCodeElement.focus();
+
+  } catch (error) {
+    console.error('Error for post barcode:', error);
+
+    barCodeElement.value = '';
+    barCodeElement.focus();
+  }
+};
+
 document.getElementById('ButBegin')?.addEventListener('click', BarcodeInput);
+document.getElementById('PyramidToShip')?.addEventListener('click', PyramidToShip);
 
 // Событие нажатия на кнопку Enter
 document.addEventListener("DOMContentLoaded", () => {
   const barcodeInput = document.getElementById("BarCode");
   const submitButton = document.getElementById("ButBegin");
 
+  const rules = window.appConfig.rules;
+
+  function matchHardcode(value)
+  {
+    if (rules.length > 0) {
+      const v = value.trim().toUpperCase();
+      return rules.some(r => v.startsWith(r.prefix) && v.length === r.length);
+    }
+  }
+
   // Нажатие Enter в поле ввода вызывает BarcodeInput
   barcodeInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault(); // Останавливаем стандартное поведение
       BarcodeInput(event);
+    }
+  });
+
+  // Автовызов по хардкоду
+  barcodeInput.addEventListener("input", () => {
+    if (matchHardcode(barcodeInput.value)) {
+      BarcodeInput();
     }
   });
 
@@ -217,6 +291,13 @@ const fetchScanLogs = async () => {
   {
     console.error('Error fetching scan logs:', error);
   }
+};
+
+const clearScanLogsTable = () => {
+  const table = document.querySelector('.gridview');
+  const tbody = table.querySelector('tbody');
+
+  tbody.innerHTML = '';
 };
 
 // Отрисовка таблицы

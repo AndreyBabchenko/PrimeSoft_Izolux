@@ -1,30 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
-using System.Configuration;
 using System.Data.SqlClient;
 using System.Web.Services;
 using System.Data;
-using System.Globalization;
 using System.Web.Script.Services;
 using Newtonsoft.Json;
-using System.Web.Services.Description;
-using NoPaper.Controllers;
 using NoPaper.Models;
-using System.Collections;
-using System.Drawing;
+using System.Configuration;
+using System.Web.UI.WebControls;
+using Utils;
+using log4net;
 
 namespace NoPaper
 {
 // Сканирование выезда машин
   public partial class ScanCar : PageModel
   {
+    private static readonly ILog log = LogManager.GetLogger(typeof(workplace));
+
+
     private static int    m_idOperator              = 0,  // ID Оператора
-                          m_idTripTransport         = 0;  // ID Машины
+                          m_idTripTransport         = 0,  // ID Машины
+                          m_BarCodeShipLength       = 0;  // Длина штрихкода
     private static string m_sBarCodePrefixOperator  = ""; // Префикс штрихкода оператора
+    public  static string m_sBarCodePrefixShip      = ""; // Префикс штрихкода отгрузки
 
     protected void Page_Load(object sender, EventArgs e)
     {
@@ -34,7 +33,7 @@ namespace NoPaper
         {
           conn.Open();
           // Инициализируем операторов с ключем как idSheduleOperator
-          LoadOperatorList(Operator, "idSheduleOperator");
+          LoadOperatorList(Operator);
 
           // Префикс оператора сканирования
           if (m_sBarCodePrefixOperator == "")
@@ -42,6 +41,8 @@ namespace NoPaper
             SqlCommand command = new SqlCommand("select d_string from Config where Name = 'BarCodePrefixOperator'", conn);
             m_sBarCodePrefixOperator = command.ExecuteScalar().ToString().ToLower();
           }
+
+          LoadConfig();
         }
       }
 
@@ -54,43 +55,45 @@ namespace NoPaper
     [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
     public static object PostBarCode(string barcode, int idOperator)
     {
-      Tuple<bool, string> result = new Tuple<bool, string>(false, "");
+      Tuple<bool, string, int> result = new Tuple< bool, string, int >(false, "", (int)ETypeBarCode.e_type_unknow);
 
       try
       {
         m_idOperator = idOperator;
 
         if (barcode.Length == 0)
-          result = new Tuple<bool, string>(false, "Требуется ввести команду");
+          result = new Tuple<bool, string, int>(false, "Требуется ввести отгрзку", (int)ETypeBarCode.e_type_unknow);
+
+
+        if (String.IsNullOrEmpty(m_sBarCodePrefixShip))
+          LoadConfig();
 
         string operBarCodePrefix = barcode.Substring(0, m_sBarCodePrefixOperator.Length).ToLower();
+        bool   bScanShip         = barcode.Substring(0, m_sBarCodePrefixShip.Length).ToLower() == m_sBarCodePrefixShip.ToLower(); // Баркод отгрузки
 
         if (operBarCodePrefix == m_sBarCodePrefixOperator && barcode.Length > 0)
           result = SetOperator(barcode);
-        else
-        {
-          result = WriteBarCode(barcode);
+        else if (bScanShip)
+          result = WriteBarCodeShip(barcode); // Сканирована отгрузка
 
-          // Если не найден штрих-код машины, возможно имеем дело с номером накладной
-          if (result.Item1 == false)
-            result = ScanShip(barcode);
-        }  
 
         return new
         {
           message         = result.Item2,
-          idOperator      = m_idOperator
+          idOperator      = m_idOperator,
+          Type            = result.Item3,
+          bHasError       = result.Item1
         };
       }
       catch (Exception ex)
       {
-        return new Tuple<bool, string>(false, ex.Message);
+        return new Tuple<bool, string, int>(false, ex.Message, (int)ETypeBarCode.e_type_unknow);
       }
     }
 
     // Устанавливаем оператора
     [WebMethod]
-    private static Tuple<bool, string> SetOperator(string barcode)
+    private static Tuple<bool, string, int> SetOperator(string barcode)
     {
       try
       {
@@ -106,15 +109,131 @@ namespace NoPaper
           if (result != null)
           {
             m_idOperator = Convert.ToInt32(result);
-            return new Tuple<bool, string>(true, $"Отсканирован оператор: {barcode}");
+            return new Tuple<bool, string, int>(true, $"Отсканирован оператор: {barcode}", (int)ETypeBarCode.e_type_oper);
           }
           else
-            return new Tuple<bool, string>(false, $"Отсканирован не найден: {barcode}");
+            return new Tuple<bool, string, int>(false, $"Отсканирован не найден: {barcode}", (int)ETypeBarCode.e_type_oper);
         }
       }
       catch (Exception ex)
       {
-        return new Tuple<bool, string>(false, ex.Message);
+        return new Tuple<bool, string, int>(false, ex.Message, (int)ETypeBarCode.e_type_oper);
+      }
+    }
+
+    [WebMethod]
+    public static Tuple<bool, string, int> WriteBarCodeShip(string barcodeText)
+    {
+      try
+      {
+        log.Info($"Команда [Скан.Отгрузки]: {barcodeText}");
+
+        if (m_BarCodeShipLength > 0 && barcodeText.Length != m_BarCodeShipLength)
+        {
+          log.Error($"Команда [Скан.Отгрузки] неизвестный штрихкод: {barcodeText}");
+          return new Tuple<bool, string, int>(false, $"Команда [Скан.Отгрузки] неизвестный штрихкод: {barcodeText}", (int)ETypeBarCode.e_type_ship);
+        }
+
+        Tuple<bool, string, int> response = AddShipment(barcodeText);
+
+        return response;
+
+      }
+      catch (Exception ex)
+      {
+        return new Tuple<bool, string, int>(false, ex.Message, (int)ETypeBarCode.e_type_unknow);
+      }
+    }
+
+    // Сканирование отгрузки.
+    public static Tuple<bool, string, int> AddShipment(string barcode)
+    {
+      try
+      {
+        using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["GlassConnectionString"].ConnectionString))
+        {
+          conn.Open();
+
+          string sShipID = barcode.ToLower().Replace(m_sBarCodePrefixShip.ToLower(), "");
+          long idShip = SafeConvert.ToInt(sShipID);
+
+          if (idShip <= 0)
+            return new Tuple<bool, string, int>(false, $"Неверный номер отгрузки: {barcode}", (int)ETypeBarCode.e_type_ship);
+
+
+          using (SqlCommand command = new SqlCommand($"select ID, Num, IsNull(bLock, 0) as bLock, DateScan from Ship where ID = {idShip}", conn))
+          {
+            bool       bLock     = false;
+            DateTime ? vDateScan = new DateTime();
+            string     sShipNum;
+
+
+            using (SqlDataReader reader = command.ExecuteReader())
+            {
+              ListItem listItem = new ListItem();
+
+              if (reader.Read())
+              {
+                bLock = SafeConvert.ToBool(reader["bLock"]);
+                vDateScan = SafeConvert.ToDateTime(reader["DateScan"], DateTime.MinValue);
+                sShipNum = SafeConvert.ToString(reader["Num"]);
+              }
+              else
+              {
+                log.Error($"Отгрузка с номером '{idShip}' не найдена в базе данных.");
+                return new Tuple<bool, string, int>(false, $"Отгрузка с номером '{idShip}' не найдена в базе данных.", (int)ETypeBarCode.e_type_ship);
+              }
+            }
+
+            if (bLock)
+            {
+              log.Error($"ОШИБКА: Отгрузка (№{sShipNum}: {idShip}) уже была подтверждена.");
+              return new Tuple<bool, string, int>(false, $"ОШИБКА: Отгрузка № ({sShipNum}: {idShip}) уже была подтверждена.", (int)ETypeBarCode.e_type_ship);
+            }
+
+            DateTime dNow = DateTime.Now;
+
+
+            command.CommandText = $"update Ship set DateScan = '{dNow:yyyy-MM-ddTHH:mm:ss}', ShipBarCode = '{barcode}', bLock = 1 where ID = {idShip}";
+            command.ExecuteNonQuery();
+
+
+            command.CommandText = $"exec sp_SetNextNumCalcFactForTransportTaskInShip {idShip}";
+            command.ExecuteNonQuery();
+          }
+        }
+
+        return new Tuple<bool, string, int>(true, $"Комманда скан отгрузки прошла успешно", (int)ETypeBarCode.e_type_ship);
+      }
+      catch
+      {
+        return new Tuple<bool, string, int>(false, $"ОШИБКА", (int)ETypeBarCode.e_type_ship);
+      }
+    }
+
+
+
+    public class ShipRule
+    {
+      public string prefix { get; set; }
+      public int length { get; set; }
+    }
+
+    public static void LoadConfig()
+    {
+      string json = ConfigurationManager.AppSettings["ShipRules"];
+
+      if (string.IsNullOrEmpty(json))
+        return;
+
+      var rules = JsonConvert.DeserializeObject<List<ShipRule>>(json);
+
+      if (rules != null && rules.Count > 0)
+      {
+        var rule = rules[0]; 
+
+        m_sBarCodePrefixShip = rule.prefix;
+        m_BarCodeShipLength  = rule.length; // если ты реально хочешь length сюда
       }
     }
 

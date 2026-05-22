@@ -37,8 +37,8 @@
       <thead>
         <tr class="grid-header">
           <th>Время</th>
-          <th>Машина</th>
-          <th>Номер</th>
+          <th>Отгрузка</th>
+          <th>Оператор</th>
         </tr>
       </thead>
       <tbody class="grid-pager">
@@ -47,7 +47,8 @@
     </table>
   </div>
   <div class="message"></div>
-  <script src="./Java/ScanCar.js?v=2"></script>
+  <script src="/ConfigHandler.ashx"></script>
+  <script src="./Java/ScanCar.js?v=3"></script>
   <script src="./Java/Messages.js?v=3"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-const maxPyramidBarCodeLength = 5;
-const barCodeInputs_rowIndex = []; // Массив 
+let   maxPyramidBarCodeLength = window.appConfig.maxPyramidBarCodeLength;
+const barCodeInputs_rowIndex = []; // Массив
 function loadBarCodeInputs()
 {
   const barCodeInputs = document.querySelectorAll('.pyramid-barcode__input');
@@ -102,11 +102,14 @@ async function handlePyramidBarCodeFetch(e, textBox)
   e.preventDefault();
 
   const pyramidBarCode            = translateRussianToEnglish(textBox.value);  // введенное в textBox pначение
-  const rowIndex                  = textBox.getAttribute("data-rowindex");                    // Атрибут индекс строки, для последующего перехода на новый текстбокс
-  const idBarCode                 = textBox.getAttribute('data-idbarcode');                   // аттрибут поля хранящий idBarCodeID
-  const idPyramid                 = textBox.getAttribute('data-idPyramid');                   // аттрибут поля хранящий idPiramid
-  const idSectorManufact          = textBox.getAttribute('data-idSector');                    // аттрибут поля хранящий idSector
-  const sIdGlassProcessingPyramid = textBox.getAttribute('data-sidglass');                    // аттрибут поля хранящий idGlassProcessingPyramid
+  const rowIndex                  = textBox.getAttribute("data-rowindex");     // Атрибут индекс строки, для последующего перехода на новый текстбокс
+  const idBarCode                 = Number(textBox.getAttribute('data-idbarcode'));         // аттрибут поля хранящий idBarCodeID
+  const idPyramid                 = Number(textBox.getAttribute('data-idPyramid')) || 0;    // аттрибут поля хранящий idPiramid
+  const idSectorManufact          = textBox.getAttribute('data-idSector');     // аттрибут поля хранящий idSector
+  const sIdGlassProcessingPyramid = textBox.getAttribute('data-sidglass');     // аттрибут поля хранящий idGlassProcessingPyramid
+
+  if (!maxPyramidBarCodeLength || isNaN(maxPyramidBarCodeLength)) 
+    maxPyramidBarCodeLength = window.appConfig.maxPyramidBarCodeLength;
 
   // Минимальное количество символов
   if (pyramidBarCode.length !== maxPyramidBarCodeLength)
@@ -155,6 +158,7 @@ async function handlePyramidBarCodeFetch(e, textBox)
     console.error("Error for post barcode:", error);
     ShowMessage(ex.message, false);
   }
+  
 }
 
 // Переменная для блокировки повтрного ввода (при сканировании через сканер, происходит вызов функции два раза, от чего всегда выходит сообщение что штрихкод отсканирован)
@@ -188,7 +192,7 @@ async function handleBarCodeInput(e, textBox) {
   if (key === 13 || barcode.length >= maxCharacters)
   {
     e.preventDefault();
-
+    
     // Выставляем флаг блокировки
     isBarcodeProcessing = true;
     setTimeout(() => isBarcodeProcessing = false, 1000); // Выставляем таймер для разблокировки через 1 секунду
@@ -284,7 +288,7 @@ function handleBarCodeInputold(e, textBox)
 
   barcode = translateRussianToEnglish(textBox.value);  // Переводим текущий текст
 
-  const key        = e.which || e.keyCode;
+  const key = e.which || e.keyCode;
   const currentKey = String.fromCharCode(key);
 
   if (key === 13 || currentText.length >= maxCharacters)
@@ -300,20 +304,21 @@ function handleBarCodeInputold(e, textBox)
         return false;
       }
     }
-    else if (currentText.length === operBarCodeCountLetter)  // Обработка ввода штрих-кода оператора
+    else if (currentText.length === operBarCodeCountLetter) // Обработка ввода штрих-кода оператора
     {
       const barCodePrefix = currentText.substring(0, operPrefixBarCode.length).toLowerCase();
 
       if (barCodePrefix === operPrefixBarCode)
-      {
-        __doPostBack("CurrentOperBarCode", `OnWriteOperBarCodeOperator`);
-        return false;
-      }
+        {
+          __doPostBack("CurrentOperBarCode", `OnWriteOperBarCodeOperator`);
+          return false;
+        }
     }
 
     if (isHeader) // Если вводим в шапке то помечаем деталь как готовую
       __doPostBack("CurrentPyramidBarCode", "OnWriteBarCodeGlassByTextBox")
   }
+
 }
 
 // Сохраним оператора в localStorage

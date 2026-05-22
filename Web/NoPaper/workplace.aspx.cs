@@ -17,6 +17,7 @@ using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Policy;
 using System.Web;
+using System.Web.Configuration;
 using System.Web.Script.Services;
 using System.Web.Services;
 using System.Web.UI;
@@ -67,7 +68,7 @@ namespace NoPaper
 
       // Если сборка то нужно отсортировать сортируем по вычисляему полю assemblyOrder, которое получаем min (PiramidOrder) over (partition by idBarCode)
       if (nTypeSector == 2)
-        return "NameSawTask, assemblyOrder, PiramidOrder, nGlassInPack, nOrderOper, PiramidNum, PiramidSide, nPack, PiramidCell";
+        return "NameSawTask, assemblyOrder, GlassNum, PiramidOrder, nGlassInPack, nOrderOper, PiramidNum, PiramidSide, nPack, PiramidCell";
 
       return "NameSawTask, PiramidNum, idGlassProcessingPyramid, PiramidSide, nPack, nGlassInPackTake desc, nGlassInPack, PiramidCell";
       // Сортируем по номеру оптимизации, а потом по ID оптимизации
@@ -132,7 +133,7 @@ namespace NoPaper
         sWhereAdd = $" or (bChangeOrderPrev != 1 and temp.idSectorManufactPrev != {idSectorManufact})";
       }
 
-      DataTable table       = glassProcessingController.GetTableOper(sector, sWhereAdd, equipment.ID, GetSortExpresion(sector.nType));
+      DataTable table       = glassProcessingController.GetTableOper(sector, sWhereAdd, equipment, GetSortExpresion(sector.nType));
       pyramidCollectionArgs = CreatePyramidButtonCommandArgsCollection(table);
 
       GridOper.DataSource = table;
@@ -152,13 +153,17 @@ namespace NoPaper
     private void BindData_GridOperReady(SectorManufactInfo sector, Equipment equipment, GlassProcessingController glassProcessingController)
     {
       string sWhereAdd = "";
-      if (sector.bChangeOrder)
-      {
-        int idSectorManufact = _sectorManufactList.FirstOrDefault((s) => s.nType == 1)?.ID ?? 0; // Если предыдщий этап резка, то будем в любом случае выводить пирамиду готовую к перемещению
-        sWhereAdd = $" and (IsNull(t.bChangeOrder, 0 )   = 1 or t.idSectorManufact = {idSectorManufact})";
-      }
+      int    idSectorManufact = _sectorManufactList.FirstOrDefault((s) => s.nType == 1)?.ID ?? 0; 
 
-      GridOperReady.DataSource = glassProcessingController.GetTableOperReady(sector.ID, equipment.ID, sWhereAdd);
+      if (sector.bChangeOrder)
+        sWhereAdd        = $" and (IsNull(t.bChangeOrder, 0 )   = 1 or t.idSectorManufact = {idSectorManufact}) \r\n"; // Если предыдщий этап резка, то будем в любом случае выводить пирамиду готовую к перемещению
+
+      if (idSectorManufact != 0 && sector.ID != idSectorManufact)
+        sWhereAdd += $" and (t.idSectorManufactNext = {sector.ID} or ( t.idSectorManufact = {idSectorManufact} and t.ProcessingRoute = '{idSectorManufact},{sector.ID}'))";
+      else
+        sWhereAdd += $" and t.idSectorManufactNext = {sector.ID}";
+
+      GridOperReady.DataSource = glassProcessingController.GetTableOperReady(equipment, sWhereAdd);
       GridOperReady.DataBind();
     }
 
@@ -166,17 +171,27 @@ namespace NoPaper
     {
       try
       {
-        log.Info("Загрузка ограничений");
+        log.Info("Загрузка ограничений оборудования");
         using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["GlassConnectionString"].ConnectionString))
         {
           conn.Open();
 
+          bool bAssembly = false;
+
+          if (_curentSectorManufact != null)
+          {
+            bAssembly = _curentSectorManufact.nType == 2;
+            log.Info($"Выбрано оборудование для {_curentSectorManufact.Name}");
+          }
+
+          // сохраняем текущее выбранное значение
+          string selectedValue = ddListEquipment.SelectedValue;
+
           // Инициализируем контролер для получения списка оборудования на текущем idSectorManufact
-          SawLimitController sawLimitController = new SawLimitController(conn);
+          SawLimitController sawLimitController = new SawLimitController(conn, bAssembly);
           List<SawLimit>     sawLimitsList      = new List<SawLimit>(sawLimitController.GetListSawLimit)
                                                                   .Where(sl => sl.idSectorManufact == _curentSectorManufact.ID)
                                                                   .ToList();
-
           ddListEquipment.DataSource = sawLimitsList;
           ddListEquipment.DataTextField = "EquipmentName";
           ddListEquipment.DataValueField = "EquipmentID";
@@ -185,6 +200,18 @@ namespace NoPaper
           ViewState["SawLimitsList"] = sawLimitController.GetListSawLimit;
 
           ddListEquipment.Items.Insert(0, new ListItem("-", "0"));
+
+          // пытаемся восстановить выбор
+          if (!string.IsNullOrEmpty(selectedValue))
+          {
+            ListItem item = ddListEquipment.Items.FindByValue(selectedValue);
+            if (item != null)
+            {
+              ddListEquipment.ClearSelection();
+              item.Selected = true;
+            }
+            // если не нашли — просто забиваем, как ты и хотел
+          }
         }
         log.Info("Конец загрузки ограничений");
       }
@@ -197,6 +224,14 @@ namespace NoPaper
 
     private void LoadSawLimitByList()
     {
+      bool bAssembly = false;
+
+      if (_curentSectorManufact != null)
+      {
+        bAssembly = _curentSectorManufact.nType == 2;
+        log.Info($"Выбрано оборудование для {_curentSectorManufact.Name}");
+      }
+
       List<SawLimit> sawLimitsList = new List<SawLimit>(_sawLimitsList)
                                                         .Where(sl => sl.idSectorManufact == _curentSectorManufact.ID)
                                                         .ToList();
@@ -220,7 +255,8 @@ namespace NoPaper
           conn.Open();
 
           Equipment equipment = new Equipment(_ID  : int.Parse(ddListEquipment.SelectedValue),
-                                              _Name: ddListEquipment.SelectedItem.Text      );
+                                              _Name: ddListEquipment.SelectedItem.Text,
+                                              type : _curentSectorManufact.nType == 2 ? TypeEquipment.e_assembly : TypeEquipment.e_default);
 
           GlassProcessingController glassProcessingController = new GlassProcessingController(conn, SawTaskTxtInput.Text, _curentSectorManufact);
 
@@ -236,9 +272,14 @@ namespace NoPaper
           // SetCurrentSawTask(glassProcessingController.GetSawTask());
         }
       }
-      catch
+      catch (InvalidOperationException ex)
       {
-        log.Error("Ошибка при загрузке данных");
+        ShowMessage(ex.Message);
+        log.Error($"На сборке остуствуют записи или ссылки на idSawTask_Assembly :\n {ex.Message}");
+      }
+      catch (Exception ex)
+      {
+        log.Error($"Ошибка при загрузке данных :\n {ex.Message}");
       }
     }
 
@@ -253,7 +294,8 @@ namespace NoPaper
           conn.Open();
 
           Equipment equipment = new Equipment(_ID: int.Parse(ddListEquipment.SelectedValue),
-                                             _Name: ddListEquipment.SelectedItem.Text);
+                                              _Name: ddListEquipment.SelectedItem.Text,
+                                              type : _curentSectorManufact.nType == 2 ? TypeEquipment.e_assembly : TypeEquipment.e_default);
 
 
           GlassProcessingController glassProcessingController = new GlassProcessingController(conn, sawTask);
@@ -270,9 +312,14 @@ namespace NoPaper
           //SetCurrentSawTask(glassProcessingController.GetSawTask());
         }
       }
-      catch 
+      catch (InvalidOperationException ex)
       {
-        log.Error($"Ошибка при загрузке данных, раскрой ID = {sawTask.ID}");
+        ShowMessage(ex.Message);
+        log.Error($"На сборке остуствуют записи или ссылки на idSawTask_Assembly :\n {ex.Message}");
+      }
+      catch (Exception ex)
+      {
+        log.Error($"Ошибка при загрузке данных :\n {ex.Message}");
       }
     }
 
@@ -373,7 +420,6 @@ namespace NoPaper
         }
 
         LoadSectorManufact(ddListSector, idSector);
-        LoadSawLimit();               // Инициализируем только при начальной загрузке
         m_config = LoadDBSettings();  // Инициализация переменных из Config
 
         // если есть параметр с оператором
@@ -420,6 +466,11 @@ namespace NoPaper
       }
 
       log.Info($"Текущий участок: {_curentSectorManufact.Name}, ID: {_curentSectorManufact.ID}");
+
+      // Загружаем оборудование и линии сборки
+      LoadSawLimit();
+
+      log.Info($"Оборудование загружено");
 
       //// Если мы просто изменили значение участка то нет необходимости перезагружать страницу
       //if (Request.Form[ddListSector.UniqueID] != null && Request.Form["__EVENTTARGET"] == ddListSector.UniqueID)
@@ -480,9 +531,11 @@ namespace NoPaper
           string     query   = $@"select top 1
                                     1 as hasBarCode
                                   from PyramidBarCode
-                                   where BarCode = '{pyramidBarCode}'";
+                                  where BarCode = @PyramidBarCode";
 
           SqlCommand command = new SqlCommand(query, conn);
+          command.Parameters.AddWithValue("@PyramidBarCode", pyramidBarCode);
+
           object     result  = command.ExecuteScalar();
 
           if ( result == null)
@@ -706,7 +759,7 @@ namespace NoPaper
         {
           log.Info("Штрихкод СП или стекла"); ;
 
-          OperatorInfo operatorInfo = new OperatorInfo(idOperator, idSheduleOperator, 0, idSectorManufact, "");
+          OperatorInfo operatorInfo = new OperatorInfo(idOperator, idSheduleOperator, 0, idSectorManufact, 0, "");
 
           return PostBarcode(barcode, operatorInfo);
         }
@@ -826,13 +879,15 @@ namespace NoPaper
                barCode                   = DataBinder.Eval(e.Row.DataItem, "barcode"                 ).ToString(),
                barCodeGlass              = DataBinder.Eval(e.Row.DataItem, "BarCode_Glass"           ).ToString(),
                currentPyramidBarCodeText = DataBinder.Eval(e.Row.DataItem, "CurrentPyramidBarCode"   ).ToString(),
+               previousPyramidBarCodeText = DataBinder.Eval(e.Row.DataItem, "CurrentPyramidBarCode"   ).ToString(),
                uniqueComboForMakePyramid = $"{sIdGlassProcessingPyramid}_{sIdPiramid}"; // Создаем уникальное слово для словаря с idGlassProecssingPyramid и idPyramid
 
         TextBox currentPyramidBarCode   = (TextBox)e.Row.FindControl("CurrentPyramidBarCode");
 
         int  idProject                  = SafeConvert.ToInt (SafeConvert.SafeEval(e.Row.DataItem, "idProject"));
         bool bPlot                      = SafeConvert.ToBool(SafeConvert.SafeEval(e.Row.DataItem, "bPlot")),
-             bShpros                    = SafeConvert.ToBool(SafeConvert.SafeEval(e.Row.DataItem, "bShpros"));
+             bShpros                    = SafeConvert.ToBool(SafeConvert.SafeEval(e.Row.DataItem, "bShpros")),
+             bFinishedPrev              = SafeConvert.ToBool(SafeConvert.SafeEval(e.Row.DataItem, "bFinishedPrev"));
 
         // Кнопка чертежа
         HyperLink linkToPlot = (HyperLink)e.Row.FindControl("OpenPlot");
@@ -888,19 +943,44 @@ namespace NoPaper
           pyramidBarCodePrevLabel.Visible = true;
         }
 
+        //// --ПРЕДУПРЕЖДЕНИЕ И ПОДСКАЗКА--
+        Label pyramidBarCodeTextBox_Prev = (Label)e.Row.FindControl("PreviousPyramidBarCode");
+        // На предыдущем участке деталь не готова? Выводим знак предупреждения и подсказку, сборку пропускаем
+        if (!bFinishedPrev && nType != 2)
+        {
+          if (!displayedPyramidButtons.Contains(uniqueComboForMakePyramid))
+            pyramidBarCodeTextBox_Prev.Text = $"⚠  {pyramidBarCodeTextBox_Prev.Text}"; // Выведим знак предупредения
+          else
+            pyramidBarCodeTextBox_Prev.Text = $"⚠"; // Выведим только знак предупредения
+
+          pyramidBarCodeTextBox_Prev.Attributes["title"] = "На предыдущем участке данная деталь не помечена как готовая";
+          pyramidBarCodeTextBox_Prev.Visible = true;
+        }
+        //----
+
         Button glassReadyButton = (Button)e.Row.FindControl("MakeOperButton"),
                infoRemakeButton = (Button)e.Row.FindControl("InfoRemakeButton"),
                makeRemakeButton = (Button)e.Row.FindControl("MakeDefectButton");
 
         glassReadyButton.CommandArgument = $"{sIdGlassDetails}_{sIdGlassProcessingPyramid}_{sIdBarCode}";
-        makeRemakeButton.Attributes["data-argument"] = $"{barCode}";
+        makeRemakeButton.Attributes["data-argument"] = $"{barCodeGlass}";
         infoRemakeButton.Attributes["data-argument"] = $"{barCodeGlass}_{sIdBarCode}";
 
         makeRemakeButton.Visible = true;
 
-        // Блокируем кнопку готово
-        // if (nType != 1)
-        //  glassReadyButton.Enabled = false;
+        // Если брак тогда отображаем кнопку информации о переделке
+        if (isDefect || isDefectGlass)
+        {
+          e.Row.CssClass += " row-defect";
+
+          infoRemakeButton.Visible = true;
+          glassReadyButton.Visible = false;
+        }
+        else
+        {
+          infoRemakeButton.Visible = false;
+          glassReadyButton.Visible = true;
+        }
 
         // Выведим PiramidNum и штрих предыдущий штрих код если сборка
         if (nType == 2)
@@ -910,7 +990,6 @@ namespace NoPaper
 
           piramidNumLabel.Visible = true;
           previousPyramidBarCodeLabel.Visible = true;
-          makeRemakeButton.Visible = false;
 
           // Кнопку выводим только на строке с формулой
           if (currentPyramidBarCodeText == "assembly")
@@ -918,6 +997,9 @@ namespace NoPaper
             glassReadyButton.Enabled = true;
             glassReadyButton.Text = "Собрано";
             e.Row.CssClass = "row-assembly";
+
+            // для кнопки брака первоя строка будет браковать весь СП
+            makeRemakeButton.Attributes["data-argument"] = $"{barCode}";
 
             // Номера столбцов которые нужно скрыть на данной строке
             string[] hiddenCols = new string[] {
@@ -943,20 +1025,6 @@ namespace NoPaper
             label.Visible = false;
             glassReadyButton.Visible = false;
           }
-        }
-
-        // Если брак тогда отображаем кнопку информации о переделке
-        if (isDefect || isDefectGlass)
-        {
-          e.Row.CssClass += " row-defect";
-
-          infoRemakeButton.Visible = true;
-          glassReadyButton.Visible = false;
-        }
-        else
-        {
-          infoRemakeButton.Visible = false;
-          glassReadyButton.Visible = true;
         }
 
         ShowAdditionalColumns(); // Вывод соответстующего столбца в зависимости от выбора значения ComboBox Переход
@@ -1046,7 +1114,6 @@ namespace NoPaper
             Response.Redirect("~/Plot.aspx?ID=" + e.CommandArgument);
             break;
 
-
           case "OnGetRemakeInfo": // Вызов модального окна
             return;
           default:
@@ -1066,7 +1133,19 @@ namespace NoPaper
         {
           case "OnTookPyramid":
             {
-              int idGlassProcessingPyramid = Convert.ToInt32(GridOperReady.DataKeys[int.Parse((string)e.CommandArgument)].Values["idGlassProcessingPyramid"]);
+              int idGlassProcessingPyramid = SafeConvert.ToInt(GridOperReady.DataKeys[int.Parse((string)e.CommandArgument)].Values["idGlassProcessingPyramid"]);
+
+              if (idGlassProcessingPyramid == 0)
+              {
+                int idSawTask = SafeConvert.ToInt(GridOperReady.DataKeys[int.Parse((string)e.CommandArgument)].Values["idSawTaskMain"]);
+
+                glassProcessingController.TryFillGlassProcessingOnPyramid(idSawTask, "");
+                glassProcessingController.PiramidParking(idSawTask, "");
+
+                ShowMessage("идентификатор пирамиды пустой, попытка назначения", false);
+                return;
+              }
+
               glassProcessingController.TookPiramid(idGlassProcessingPyramid);
               break;
             }
@@ -1113,7 +1192,7 @@ namespace NoPaper
     public void ddListSector_SelectedIndexChanged(object sender, EventArgs e) // Событие при смене элемента sectorManufact
     {
       _curentSectorManufact = _sectorManufactList[ddListSector.SelectedIndex];
-      LoadSawLimitByList();
+      //LoadSawLimitByList();
     }
 
     public void ddListPerson_SelectedIndexChanged(object sender, EventArgs e) // Событие при смене элемента sectorManufact

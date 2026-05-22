@@ -4,7 +4,7 @@
 <head runat="server">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <title>Сканирование</title>
-  <link rel="stylesheet" type="text/css" href="~/css/scan1.css?v=4" />
+  <link rel="stylesheet" type="text/css" href="~/css/scan1.css?v=6" />
   <link rel="stylesheet" type="text/css" href="~/css/message.css?v=5" />
 </head>
 <body>
@@ -26,15 +26,20 @@
                 runat="server"
                 ID="Operator"
                 CssClass="operator-dropdown" />
-              <p>Штрихкод</p>
             </form>
           </div>
+          
+        <div class="info-interactive">
+          <p>Штрихкод пирамиды: <span id="pyramid-complete-barcode-now"></span></p>
+          <button ID="PyramidToShip" class="submit-button pyramid-to-ship_button">Очистика</button>
+        </div>
+          
         <div class="info">
           <label id="ScanTextInfo" class="info-label">Отскан ШК: <span id="ScanTextValue" /></label>
           <label id="TextInfo" class="info-label" />
         </div>
         <div class="barcode-input">
-          <input id="BarCode" class="barcode-textbox" maxlength="12" autofocus />
+          <input id="BarCode" class="barcode-textbox" autofocus />
         </div>
 
         <button ID="ButBegin" class="submit-button">Ввод</button>
@@ -55,7 +60,8 @@
   </div>
   <div class="message"></div>
   <div class="count-failed-barcode"></div>
-  <script src="./Java/Scan1.js?v=6"></script>
+  <script src="/ConfigHandler.ashx"></script>
+  <script src="./Java/Scan1.js?v=16"></script>
   <script src="./Java/Messages.js?v=3"></script>
   <%--<script src="./Java/Test.js?v=2"></script>--%>
 </body>

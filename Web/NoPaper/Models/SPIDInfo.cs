@@ -22,6 +22,14 @@ namespace NoPaper.Models
       }
     }
 
+    public void GetOrInitSPID(out int spid, SqlConnection conn)
+    {
+      InitializeSPID(conn);
+
+      spid = GetSPID;
+    }
+
+
     private protected void InitializeSPID(SqlConnection conn)
     {
       // Если уже есть то инициализация не нужна
