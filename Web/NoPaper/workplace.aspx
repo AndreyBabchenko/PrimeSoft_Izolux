@@ -40,6 +40,10 @@
         <asp:TextBox ID="SawTaskTxtInput" runat="server" Placeholder="номер оптимизации"/>
       </div>
       <div class="header-item">
+        Бригадир
+        <asp:DropDownList runat="server" ID="ddListBrigadier" />
+      </div>
+      <div class="header-item">
         Оператор
         <asp:DropDownList runat="server" ID="ddListPerson" OnSelectedIndexChanged="ddListPerson_SelectedIndexChanged" AutoPostBack="true" onchange="saveCurrentOperator(this)" />
       </div>

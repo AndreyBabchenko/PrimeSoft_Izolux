@@ -350,10 +350,12 @@ namespace NoPaper
       BarCodeTxtInput.Attributes["autocomplete"] = "off";
 
       // Перезагружать список операторо при каждом Postback включая первой инициализации
-      LoadOperatorList(ddListPerson, "ID", "Name", "1=1", true);                  // Список операторов с ключем 
+      LoadOperatorList(ddListPerson, "ID", "Name", "1=1", true); // Список операторов с ключем 
 
       if (!IsPostBack)
       {
+        LoadOperatorList(ddListBrigadier, "ID", "Name", "bTeam = 1");
+
         int idSector = 0;
         string sectorParam = Request.QueryString["sector"];
 
