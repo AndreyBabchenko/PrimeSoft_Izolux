@@ -2,7 +2,7 @@
 {
   static class TableOperReadyData
   {
-    public static string GetData(string sListIdSawTask, int idSectorNext, int SPID, string sWhereAdd = "") =>
+    public static string GetData(string sListIdSawTask, int SPID, string sWhereAdd = "") =>
     // Получаем пирамиды которые необходим забрать с предыдущего участка
       $@"select 
            t.idGlassProcessingPyramid,
@@ -19,19 +19,21 @@
            t.PiramidNum,
            t.CurrentPyramidBarCode,
            t.NameSawTask,
+           t.idSawTaskMain,
            t.NameSectorManufact,
            t.idSectorManufactNext,
            t.ReceiveDateTime,
            t.ReadyDateTime,
-           t.bChangeOrder
+           t.bChangeOrder,
+           t.ProcessingRoute
          from 
            ##TempGlassProcessing{SPID} t
-         where 
-               IsNull(t.ReadyDateTime, 0)  != 0  -- Готова, чтобы ее забрали
-           and IsNull(t.ReceiveDateTime, 0) = 0  -- Еще не забрали на текущий участок
+         where
+          -- Решили что нужно выводить пирамиды, если хоть одно стекло на предыдущем этапе было помечено, как готовое
+          -- IsNull(t.ReadyDateTime, 0)  != 0 and -- Готова, чтобы ее забрали
+             IsNull(t.ReceiveDateTime, 0) = 0  -- Еще не забрали на текущий участок
            and IsNull(t.bFinished, 0)       = 1  -- Все детали помечены как готовые
            and t.idSawTaskMain       in ({sListIdSawTask})
-           and t.idSectorManufactNext = {idSectorNext}
            {sWhereAdd}
            -- sEquipmentWhere
          group by 
@@ -39,10 +41,12 @@
            t.PiramidNum,
            t.CurrentPyramidBarCode,
            t.NameSawTask,
+           t.idSawTaskMain,
            t.NameSectorManufact,
            t.idSectorManufactNext,
            t.ReceiveDateTime,
            t.ReadyDateTime,
-           t.bChangeOrder";
+           t.bChangeOrder,
+           t.ProcessingRoute";
   }
 }

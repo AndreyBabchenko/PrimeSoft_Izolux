@@ -13,7 +13,9 @@ namespace NoPaper.Models
     public int?   idSectorManufact { get; private set; }
     public int    idSheduleOperator { get; set; }
     public int    idUser            { get; set; }
+    public int    idDepName         { get; private set;}
     public string Name  { get; private set; }
+
 
     private static readonly ILog log = LogManager.GetLogger(typeof(OperatorInfo));
 
@@ -23,6 +25,7 @@ namespace NoPaper.Models
       idSectorManufact  = 0;
       idSheduleOperator = 0;
       idUser            = 0;
+      idDepName         = 0;
       Name              = "";
     }
 
@@ -31,13 +34,14 @@ namespace NoPaper.Models
       ID = _ID;
     }
 
-    public OperatorInfo(int _ID, int _idSheduleOperator, int _idUser, int? _idSectorManufact, string _Name)
+    public OperatorInfo(int _ID, int _idSheduleOperator, int _idUser, int? _idSectorManufact, int _idDepName, string _Name)
     {
-      ID = _ID;
+      ID                = _ID;
       idSheduleOperator = _idSheduleOperator;
-      idSectorManufact = _idSectorManufact;
+      idSectorManufact  = _idSectorManufact;
       idUser            = _idUser;
-      Name = _Name;
+      Name              = _Name;
+      idDepName         = _idDepName;
     }
 
     /// <summary>
@@ -68,7 +72,7 @@ namespace NoPaper.Models
           command.Parameters.AddWithValue("@date", DateTime.Now);
 
           SqlParameter outParam = new SqlParameter("@idSheduleOperatorNew", SqlDbType.Int);
-          outParam.Direction = ParameterDirection.Output;
+          outParam.Direction    = ParameterDirection.Output;
           command.Parameters.Add(outParam);
 
           command.ExecuteNonQuery();
@@ -95,7 +99,8 @@ namespace NoPaper.Models
                                  O.Name,
                                  O.idSectorManufact,
                                  IsNull(SO.ID,    0) as idSheduleOperator,
-                                 IsNull(O.idUser, 0) as idUser
+                                 IsNull(O.idUser, 0) as idUser,
+                                 IsNull(O.idDepName, 0) as idDepName
                                from Operator O
                                outer apply  
                                (
@@ -114,10 +119,11 @@ namespace NoPaper.Models
             {
               OperatorInfo operatorInfo = new OperatorInfo
                                         (
-                                          _ID:                Convert.ToInt32(reader["ID"]),
-                                          _idSheduleOperator: Convert.ToInt32(reader["idSheduleOperator"]),
-                                          _idUser:            Convert.ToInt32(reader["idUser"]),
-                                          _idSectorManufact:  reader["idSectorManufact"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["idSectorManufact"]),
+                                          _ID:                SafeConvert.ToInt(reader["ID"]),
+                                          _idSheduleOperator: SafeConvert.ToInt(reader["idSheduleOperator"]),
+                                          _idUser:            SafeConvert.ToInt(reader["idUser"]),
+                                          _idSectorManufact:  SafeConvert.ToNullableInt(reader["idSectorManufact"]),
+                                          _idDepName:         SafeConvert.ToInt(reader["idDepName"]),
                                           _Name:              reader["Name"].ToString()
                                         );
 

@@ -37,6 +37,23 @@ namespace NoPaper.Models
 
   public class PageModel : System.Web.UI.Page
   {
+    public enum ETypeBarCode
+    {
+      e_type_unknow  = 0,
+      e_type_oper    = 1,
+      e_type_pyramid = 2,
+      e_type_barcode = 3,
+      e_type_ship    = 4
+    }
+
+    public struct ResonseString
+    {
+      bool         isSuccess;
+      string       message;
+      ETypeBarCode code;
+    }
+
+
     /// <summary>
     /// Текущий участок
     /// </summary>
@@ -52,7 +69,7 @@ namespace NoPaper.Models
     /// <summary>
     /// Список операторов
     /// </summary>
-    protected static List<OperatorInfo> _operatorInfoList; 
+    protected static List<OperatorInfo> _operatorInfoList;
 
     private static readonly ILog log = LogManager.GetLogger(typeof(PageModel));
 
@@ -144,6 +161,8 @@ namespace NoPaper.Models
       {
         using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["GlassConnectionString"].ConnectionString))
         {
+          log.Info("Начало загрузки списка операторов");
+
           conn.Open();
 
           int selectedId = 0;
@@ -156,22 +175,23 @@ namespace NoPaper.Models
 
           List<OperatorInfo> operatorInfoList = new List<OperatorInfo>();
           string commandText = $@"select 
-                                    O.ID, 
-                                    O.Name,
-                                    O.idSectorManufact,
-                                    IsNull(SO.ID,    0) as idSheduleOperator,
-                                    IsNull(O.idUser, 0) as idUser
-                                  from Operator O
-                                  outer apply 
-                                  (
+                                 O.ID, 
+                                 O.Name,
+                                 O.idSectorManufact,
+                                 IsNull(SO.ID,    0) as idSheduleOperator,
+                                 IsNull(O.idUser, 0) as idUser,
+                                 IsNull(O.idDepName, 0) as idDepName
+                               from Operator O
+                               outer apply  
+                               (
                                 select top 1 ID
-                                    from SheduleOperator SO
+                                from SheduleOperator SO
                                 where SO.idOperator = O.ID    and 
                                       SO.dtBegin <= getdate() and
                                       SO.dtEnd   >= getdate()
-                                  ) SO
-                                  where {sFilter}
-                                  order by Name";
+                               ) SO
+                               where {sFilter}
+                               order by Name";
 
           using (SqlCommand command = new SqlCommand(commandText, conn))
           using (SqlDataReader reader = command.ExecuteReader())
@@ -183,14 +203,15 @@ namespace NoPaper.Models
               _idSheduleOperator: SafeConvert.ToInt(reader["idSheduleOperator"]),
               _idUser:            SafeConvert.ToInt(reader["idUser"]),
               _idSectorManufact:  SafeConvert.ToNullableInt(reader["idSectorManufact"]),
+              _idDepName:         SafeConvert.ToInt(reader["idDepName"]),
               _Name:              SafeConvert.ToString(reader["Name"]));
 
               operatorInfoList.Add(opearator);
             }
           }
 
-          ddListOperator.DataSource = operatorInfoList;
-          ddListOperator.DataTextField = dataTextField;
+          ddListOperator.DataSource     = operatorInfoList;
+          ddListOperator.DataTextField  = dataTextField;
           ddListOperator.DataValueField = dataValueField;
           ddListOperator.DataBind();
 
@@ -229,6 +250,10 @@ namespace NoPaper.Models
       }
     }
 
+    public void LoadOperatorList(DropDownList ddListOperator, string sFilter)
+    {
+      LoadOperatorList(ddListOperator, "ID", "Name", sFilter);
+    }
 
     public void SelectOperatorInList(DropDownList ddListOperator, OperatorInfo operatorInfo)
     {
@@ -248,9 +273,9 @@ namespace NoPaper.Models
       }
     }
 
-
     public static DBConfig LoadDBSettings()
     {
+      SqlCommand command = new SqlCommand();
       try
       {
         log.Info("Загрузка опций базы данных");
@@ -258,7 +283,7 @@ namespace NoPaper.Models
         {
           conn.Open();
 
-          SqlCommand command = new SqlCommand("", conn);
+          command = new SqlCommand("", conn);
 
           // Префикс штрихкода транспортной пирамиды
           command.CommandText = "select d_string from Config where Name = 'BarCodePrefixPyramid'";
@@ -299,6 +324,10 @@ namespace NoPaper.Models
       {
         log.Error(ex.Message);
         return new DBConfig();
+      }
+      finally
+      {
+        command.Dispose();
       }
     }
 

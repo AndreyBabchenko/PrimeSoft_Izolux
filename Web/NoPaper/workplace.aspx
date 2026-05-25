@@ -118,7 +118,7 @@
         <asp:GridView
           ID="GridOperReady"
           runat="server"
-          DataKeyNames="idGlassProcessingPyramid"
+          DataKeyNames="idGlassProcessingPyramid,idSawTaskMain"
           AutoGenerateColumns="False"
           OnRowCommand="GridOperReady_RowDataBound"
           CssClass="grid grid_additional-top">
@@ -192,7 +192,7 @@
               <HeaderTemplate>
                 <div>
                   <asp:LinkButton runat="server" CommandName="Sort" CommandArgument="NameSawTask" OnClientClick="showHideSortArrow(this)">
-                    <span title="Оптимизация" class="span-arrow">№ опт</span>
+                    <span title="Оптимизация" class="span-arrow">№ оптим.</span>
                     <div id="NameSawTask" class="arrow">
                       <span class="arrow-left"></span>
                       <span class="arrow-right"></span>
@@ -207,7 +207,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span>черт</span>
+                <span>чертёж</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:HyperLink
@@ -221,7 +221,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span>Оборуд</span>
+                <span>Оборудование</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="NameEquipment" Text='<%# Eval("NameEquipment") %>' />
@@ -232,7 +232,7 @@
               <HeaderTemplate>
                 <div>
                   <asp:LinkButton runat="server" CommandName="Sort" CommandArgument="NameGlassProduct" OnClientClick="showHideSortArrow(this)">
-                    <span class="span-arrow">Изд</span>
+                    <span class="span-arrow">Изделие</span>
                       <div id="NameGlassProduct" class="arrow">
                         <span class="arrow-left"></span>
                         <span class="arrow-right"></span>
@@ -247,7 +247,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span>Зак</span>
+                <span>Заказ</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="AccountNum" Text='<%# Eval("AccountNum") %>' />
@@ -265,7 +265,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span title="Позиция сборки">Сбор N</span>
+                <span title="Позиция сборки">Сборка N</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="SawOrder" Text='<%# Eval("SawOrder") %>' />
@@ -304,7 +304,7 @@
 
             <asp:TemplateField HeaderText="След. Участок" HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span title="следующий участок">След Уч</span>
+                <span title="следующий участок">След. Участок</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label 
@@ -317,7 +317,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span title="Количество" style="display: block; width: max-content;">Кол</span>
+                <span title="Количество" style="display: block; width: max-content;">Кол-во</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="ForCount" Text='<%# Eval("ForCount") %>' />
@@ -339,7 +339,7 @@
               <ItemTemplate>
                 <div>
                   <asp:Label runat="server" ID="PiramidNumLabel" Text='<%# Eval("PiramidNum") %>' Visible="false" />
-                  <asp:Button runat="server" ID="MakePyramidButton" Text="Готов" ButtonType="Button" CommandName="OnMakePyramid" CommandArgument='<%# Eval("idGlassProcessingPyramid") + "_" + Eval("idBarCode") %>' Visible="false" />
+                  <asp:Button runat="server" ID="MakePyramidButton" Text="Готова" ButtonType="Button" CommandName="OnMakePyramid" CommandArgument='<%# Eval("idGlassProcessingPyramid") + "_" + Eval("idBarCode") %>' Visible="false" />
                 </div>
               </ItemTemplate>
             </asp:TemplateField>
@@ -375,7 +375,7 @@
                   <asp:Button
                     runat="server"
                     ID="WritePyramidBarCodeButton"
-                    Text="Изм"
+                    Text="изменить"
                     ButtonType="Button"
                     CssClass="pyramid-barcode__button"
                     CommandName="OnWritePyramidBarCode"
@@ -396,7 +396,7 @@
 
             <asp:TemplateField HeaderText="Пачка" HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                  <span>Пач</span>
+                  <span>Пачка</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="nPack" Text='<%# Eval("nPack") %>' />
@@ -405,7 +405,7 @@
 
             <asp:TemplateField HeaderText="Ячейка" HeaderStyle-CssClass="grid-header-item">
               <HeaderTemplate>
-                <span>Яч</span>
+                <span>Ячейка</span>
               </HeaderTemplate>
               <ItemTemplate>
                 <asp:Label runat="server" ID="PiramidCell" Text='<%# Eval("PiramidCell") %>' />
@@ -432,7 +432,7 @@
 
             <asp:TemplateField HeaderStyle-CssClass="grid-header-item">
               <ItemTemplate>
-                <asp:Button runat="server" ID="MakeOperButton" Text="Готов" ButtonType="Button" CommandName="OnMakeOper" HeaderStyle-CssClass="grid-header-item" />
+                <asp:Button runat="server" ID="MakeOperButton" Text="Готова" ButtonType="Button" CommandName="OnMakeOper" HeaderStyle-CssClass="grid-header-item" />
                 <asp:Button runat="server" 
                             ID="InfoRemakeButton" 
                             CssClass="info-button"
@@ -521,8 +521,9 @@
     <asp:SqlDataSource ID="SqlDSOper" runat="server" ConnectionString="<%$ ConnectionStrings:GLASSConnectionString %>" />
   </form>
   <div class="message"></div>
+  <script src="/ConfigHandler.ashx"></script>
   <script src="./Java/ShowArrow.js?v=2" defer="defer"></script>
-  <script src="./Java/PyramidBarCode.js?v=26"></script>
+  <script src="./Java/PyramidBarCode.js?v=28"></script>
   <script src="./Java/RemakeModal.js?v=7"></script>  
   <script src="./Java/Draw.js?v=16"></script>
   <script src="./Java/Messages.js?v=3"></script>

@@ -44,12 +44,23 @@ const BarcodeInput = async (event) => {
     if (selectedOperator !== jsonStr.idOperator && jsonStr.idOperator !== 0)
       operatorDropdown.value = jsonStr.idOperator;
 
+
+    if (jsonStr.Type === 4 && jsonStr.bHasError) // Отгрузка
+    {
+      saveScan({
+        barcode: barCodeText,
+        operatorId: jsonStr.idOperator,
+        time: new Date().toISOString()
+      });
+    }
+
     await fetchScanLogs(); // Отрисуем таблицу
 
     barCodeElement.value = '';
   }
   catch (error)
   {
+    const barCodeElement = document.getElementById('BarCode');
     barCodeElement.value = '';
     console.error('Error for post barcode:', error);
   }
@@ -76,59 +87,77 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchScanLogs();
 });
 
-const fetchScanLogs = async () => {
+
+const MAX_ITEMS = 20; // Полную историю ввести нет смысла, запоминаем просто последние 20 значений отгрузки
+function saveScan(newItem) {
+  let list = JSON.parse(localStorage.getItem("shipScans")) || [];
+
+  list.unshift(newItem);
+
+  if (list.length > MAX_ITEMS) 
+    list = list.slice(0, MAX_ITEMS);
+
+  localStorage.setItem("shipScans", JSON.stringify(list));
+}
+
+const fetchScanLogs = () => {
   try
   {
-    const response = await fetch('ScanCar.aspx/GetScanLogs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    // Ошибка запроса
-    if (!response.ok)
-    {
-      ShowMessage("Ошибка при получении отсканированных данных");
-      throw new Error(`Error: ${response.status} ${response.statusText}`);
-    }
-
-    const data  = await response.json();
-    let jsonStr = JSON.parse(data.d); // предполагаем, что данные вложены в свойство d
+    // берём из localStorage
+    let jsonStr = JSON.parse(localStorage.getItem("shipScans")) || [];
 
     // Обновление таблицы на HTML
     const table = document.querySelector('.gridview');
     const tbody = table.querySelector('tbody');
-    tbody.innerHTML = ''; // Очистка существующих строк
+    tbody.innerHTML = '';
 
     const textInfo = document.getElementById('ScanTextValue');
     if (textInfo) textInfo.innerText = jsonStr.length;
+
+    // получаем dropdown операторов
+    const operatorDropdown = document.getElementById('Operator');
 
     jsonStr.forEach(row => {
       const tr = document.createElement('tr');
       tr.classList.add("grid-row");
 
-      // Создание и заполнение ячеек
+      // --- ВРЕМЯ ---
       const timeScanCell = document.createElement('td');
-      const dateObj = new Date(row.TimeScan);
-      const formattedDate = `${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      const dateObj = new Date(row.time);
 
+      const formattedDate = `${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       timeScanCell.textContent = formattedDate;
+
       tr.appendChild(timeScanCell);
 
+      // --- ШТРИХКОД ---
       const scanTextCell = document.createElement('td');
-      scanTextCell.textContent = row.ScanText;
+      scanTextCell.textContent = row.barcode;
+
       tr.appendChild(scanTextCell);
 
-      const gosNumber = document.createElement('td');
-      gosNumber.textContent = row.GosNumber;
-      tr.appendChild(gosNumber);
+      // --- ОПЕРАТОР (текст из select) ---
+      const operatorCell = document.createElement('td');
+
+      let operatorText = row.operatorId;
+
+      if (operatorDropdown) {
+        const option = Array.from(operatorDropdown.options)
+          .find(opt => parseInt(opt.value, 10) === row.operatorId);
+
+        if (option)
+          operatorText = option.text;
+      }
+
+      operatorCell.textContent = operatorText;
+
+      tr.appendChild(operatorCell);
 
       tbody.appendChild(tr);
     });
 
-  } catch (error)
-  {
-    console.error('Error fetching scan logs:', error);
+  }
+  catch (error) {
+    console.error('Error loading scan logs:', error);
   }
 };

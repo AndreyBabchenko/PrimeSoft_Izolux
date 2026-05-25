@@ -1,10 +1,10 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Defect.aspx.cs" Inherits="NoPaper.Defect" Async="true"  %>
+﻿<%@Page Language="C#" AutoEventWireup="true" CodeBehind="Defect.aspx.cs" Inherits="NoPaper.Defect" Async="true"  %>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-   <title>Брак</title>
-   <link rel="stylesheet" type="text/css" href="~/css/styles.css?v=2" />
+  <title>Брак</title>
+  <link rel="stylesheet" type="text/css" href="~/css/styles.css?v=2" />
   <link rel="stylesheet" type="text/css" href="~/css/navigation.css?v=2" />
   <link rel="stylesheet" type="text/css" href="~/css/barCode.css?v=1" />
   <link rel="stylesheet" type="text/css" href="~/css/message.css?v=2" />
@@ -73,10 +73,10 @@
       </div>
       <div class="defect-type-item">
         <label>Виновный</label>
-        <asp:DropDownList ID="IDOperator_Guilty" runat="server" />
-        <asp:SqlDataSource ID="SQLOperatorGuilty" runat="server"
+        <asp:DropDownList ID="IDPersonnel_Guilty" runat="server" />
+        <asp:SqlDataSource ID="SQLPersonnelGuilty" runat="server"
           ConnectionString="<%$ ConnectionStrings:GLASSConnectionString %>"
-          SelectCommand="select ID, Name from Operator order by Name " />
+          SelectCommand="select ID, Name from Personnel where IsNull(bGuilty, 0) = 1 order by Name " />
       </div>
       <div class="defect-type-item">
         <label>Комментарий</label>
@@ -91,9 +91,9 @@
           ID="ddOperatorList"
           CssClass="operator-dropdown" />
       </div>
-    <div class="defect-input">
+      <div class="defect-input">
         <asp:TextBox ID="DefectBarCode" runat="server" Placeholder="Штрих код" CssClass="barcode__textbox" />
-      <asp:Button ID="DefectButton" runat="server" OnClick="DefectButton_Click" Text="Применить" CssClass="barCode__button" />
+        <asp:Button ID="DefectButton" runat="server" OnClick="DefectButton_Click" Text="Применить" CssClass="barCode__button" />
       </div>
     </div>
   </form>

@@ -4,7 +4,7 @@ namespace NoPaper.Queries
 {
   static class AssemblyData
   {
-    public static string GetUnionAssembly(string sListIdSawTask, int idSector, int SPID, string sortExpression) => 
+    public static string GetUnionAssembly(string sListIdSawTask, string sWhereEquipment, int idSector, int SPID, string sortExpression) => 
       $@"union all
          select 
            temp.idGlassDetails,
@@ -47,19 +47,22 @@ namespace NoPaper.Queries
            SawOrder,
            ProjectNum,
            NULL as nGlassInPackTake,
-           0    as isDefect,
-           0    as isDefectGlass,
+           0 as isDefect,
+           0 as isDefectGlass,
            assemblyOrder,
            E.Name as NameEquipment,
-           temp.idProject
-         from ##TempGlassProcessing{SPID} temp                     
+           temp.idProject,
+           0 as GlassNum,
+           temp.idAssemblyLine
+         from ##TempGlassProcessing{SPID} temp
          left join SawLimit  SL on SL.ID = temp.idSawLimit
          left join Equipment E  on E.ID  = SL.idEquipment    
          where 
                idSawTaskMain                   in ({sListIdSawTask})
            and temp.idSectorManufact           = {idSector}
-                and IsNull(ReceiveDateTimePrev, 0) != 0
-                and IsNull(bFinished, 0)           != 1
+           and IsNull(ReceiveDateTimePrev, 0) != 0
+           and IsNull(bFinished, 0)           != 1
+           {sWhereEquipment}
          order by
            {sortExpression}";
 
@@ -73,7 +76,9 @@ namespace NoPaper.Queries
     /// <param name="sEquipmentWhere">Строка условия, для фильтрации по оборудованию</param>
     /// <param name="sortExpression">Выражения сортировки</param>
     /// <returns>Возвращает строку запроса для получения данных из базы</returns>
-    public static string GetData(string sListIdSawTask, int idSector, int SPID, string sWhereAssemblySector, string sEquipmentWhere, string sortExpression) => 
+    public static string GetData(string sListIdSawTask, int idSector, int SPID, string sWhereAssemblySector, string sEquipmentWhere, string sortExpression)
+    {
+      return
       $@"select
            temp.idGlassDetails,
            idSawTaskMain,
@@ -107,7 +112,7 @@ namespace NoPaper.Queries
            idGlassProcessingPrev,
            bFinishedPrev,
            idBarCode,
-           BarCode,
+           temp.BarCode,
            BarCode_Glass,
            PiramidCell,
            AccountNum,
@@ -119,20 +124,31 @@ namespace NoPaper.Queries
            isDefectGlass,
            assemblyOrder,
            E.Name as NameEquipment,
-           temp.idProject
+           temp.idProject,
+           temp.GlassNum,
+           temp.idAssemblyLine
          from ##TempGlassProcessing{SPID} temp
-         left join SawLimit  SL on SL.ID = temp.idSawLimit
-         left join Equipment E  on E.ID  = SL.idEquipment
+         inner join SectorManufact SM on SM.ID = temp.idSectorManufact
+         left join SawLimit  SL       on SL.ID = temp.idSawLimit
+         left join Equipment E        on E.ID  = SL.idEquipment
          where idSawTaskMain_Assembly   in ({sListIdSawTask})
                {sWhereAssemblySector}
                {sEquipmentWhere}
-               and idBarCode in (select 
-                                   idBarCode 
-                                 from ##TempGlassProcessing{SPID} t
-                                 where t.idSectorManufact              =   {idSector}
-                                   and idSawTaskMain                   in ({sListIdSawTask})
-                                   and IsNull(ReceiveDateTimePrev, 0) != 0
-                                   and IsNull(bFinished, 0)           != 1)
-        {GetUnionAssembly(sListIdSawTask, idSector, SPID, sortExpression)}";
+               and idGlassDetails in (
+                                      select 
+                                        idGlassDetails 
+                                      from ##TempGlassProcessing{SPID} t
+                                      where 
+                                        idSawTaskMain in ({sListIdSawTask}) and
+                                        IsNull(ReceiveDateTime, 0) != 0     and 
+                                        IsNull(bFinished,       0)  = 1     and
+                                        (
+                                          t.idSectorManufactNext = {idSector} or
+                                          SM.nType               = 1 -- На резке не факт что найдет следующий участок
+                                        )
+                                     )
+               and (select top 1 IsNull(bFinished, 0) from ##TempGlassProcessing{SPID} t where idBarCode = temp.idBarCode and idSectorManufact = {idSector}) != 1 -- Выводим только если участок сборки еще не был готов
+        {GetUnionAssembly(sListIdSawTask, sEquipmentWhere, idSector, SPID, sortExpression)}";
+    }
   }
 }

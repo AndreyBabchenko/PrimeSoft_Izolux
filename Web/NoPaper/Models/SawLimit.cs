@@ -7,8 +7,8 @@ namespace NoPaper.Models
   {
     public int    ID               { get; private set; } 
     public string Name             { get; private set; }
-
     public int    idSectorManufact { get; private set; }
+    public bool   bAssembly;
 
     Equipment equipment { get; }
 
