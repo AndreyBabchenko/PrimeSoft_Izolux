@@ -1,15 +1,19 @@
 ﻿:root {
   /* Переменные для шрифтов */
-  --font-size-label: 64px;  /* размер шрифт для надписей*/
-  --font-size-combo: 64px;  /* размер шрифт для комбобокса*/
-  --font-size-button: 64px; /* размер шрифт для кнопки*/
-  --font-size-grid:   48px; /* размер шрифта в таблице */
-  --font-size-info:   32px; /* размер обобщенной информации */
+  --font-size-label: 64px; /* размер шрифт для надписей */
+  --font-size-combo: 64px; /* размер шрифт для комбобокса */
+  --font-size-button: 64px; /* размер шрифт для кнопки */
+  --font-size-button_medium: 32px; /* размер шрифт для средний */
+  --font-size-grid: 48px; /* размер шрифта в таблице */
+  --font-size-info: 32px; /* размер обобщенной информации */
   /* Переменные для размеров */
   --dropdown-height: 160px; /* высота комбобокса*/
   --dropdown-width: 900px; /* ширина комбобокса*/
-  --button-height: 160px;   /* высота кнопки    */
-  --button-width: 500px;   /* ширина кнопки    */
+  --button-height: 160px; /* высота кнопки    */
+  --button-width: 500px; /* ширина кнопки    */
+
+  --button-height_medium: 80px;
+  --button-width_medium: 250px;
 }
 
 body {
@@ -107,5 +111,31 @@ header {
 }
 
 .count-failed-barcode.hide {
+  display: none;
+}
+
+.info-interactive {
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+  align-items: center;
+}
+
+.info-interactive p {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-label);
+}
+
+.pyramid-to-ship_button {
+  display: block;
+  padding: 0;
+  margin: 0 20px;
+  font-size: var(--font-size-button_medium);
+  width: var(--button-width_medium);
+  height: var(--button-height_medium);
+}
+
+pyramid-to-ship_button {
   display: none;
 }

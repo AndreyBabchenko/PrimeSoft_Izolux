@@ -5,9 +5,10 @@
     public static string MakeData(int SPID, string condition) =>
     // Все стёкла на всех пирамидах на всех участках
      $@"if object_id('tempdb..##TempGlassProcessing{SPID}', 'U') is not null
-          drop table          ##TempGlassProcessing{SPID}
+          drop table ##TempGlassProcessing{SPID}
 
         select
+          GlassNum,
           idGlassDetails,
           idSawTaskMain,
           idSawTaskMain_Assembly,
@@ -49,6 +50,7 @@
           idProject,
           bShpros,
           bChangeOrder,
+          idAssemblyLine,
           case when nState       & 512 = 512
             then 1
             else 0
@@ -58,32 +60,19 @@
             else 0
           end as isDefectGlass,
           Min(SawOrder) over (partition by idBarCode) as assemblyOrder,  -- Для сортировки на участке сборки
-          case
-           when Lead(NameSectorManufact) over (partition by idGlassDetails order by nOrderOper asc) is     null and
-                Lead(  idSectorManufact) over (partition by idGlassDetails order by nOrderOper asc) is not null then
-           (
-             select Name
-             from SectorManufact
-             where ID = SubString(ProcessingRoute, 
-                        CharIndex(ltrim(rtrim(str(idSectorManufact))), ProcessingRoute) + len(ltrim(rtrim(str(idSectorManufact)))) + 1,
-                                  2)
-           )
-           else
-             Lead(NameSectorManufact) over (partition by idGlassDetails order by nOrderOper asc)
-          end as SectorNext,
+          coalesce(
+              lead(NameSectorManufact) over (partition by idGlassDetails order by nOrderOper asc),
+              (
+                select SM.Name
+                from SectorManufact SM
+                where SM.ID = dbo.f_GetSectorManufactNext(idSectorManufact, ProcessingRoute)
+              )
+          ) as SectorNext,
 
-          case when Lead(idSectorManufact) over (partition by idGlassDetails order by nOrderOper asc) is     null and
-                    Lead(idSectorManufact) over (partition by idGlassDetails order by nOrderOper asc) is not null
-            then 
-              case when CharIndex(',' + Cast(idSectorManufact as varchar), ProcessingRoute) < Len(ProcessingRoute)
-                then 
-                  SubString(ProcessingRoute, 
-                  CharIndex(ltrim(rtrim(str(idSectorManufact))), ProcessingRoute) + len(ltrim(rtrim(str(idSectorManufact)))) + 1,
-                            2)
-                else NULL
-              end
-            else Lead(idSectorManufact) over (partition by idGlassDetails order by nOrderOper asc)
-          end as idSectorManufactNext,                                                              -- Следующий сектор
+          coalesce(
+                    dbo.f_GetSectorManufactNext(idSectorManufact, ProcessingRoute),
+                    lead(idSectorManufact) over (partition by idGlassDetails order by nOrderOper asc) 
+                  ) as idSectorManufactNext, -- Следующий сектор
           
           Lag(idSectorManufact)     over (partition by idGlassDetails order by nOrderOper asc) as idSectorManufactPrev,
           Lag(ReceiveDateTime)      over (partition by idGlassDetails order by nOrderOper asc) as ReceiveDateTimePrev,

@@ -21,13 +21,14 @@ namespace NoPaper.Controllers
 {
   internal class BarCodeController : SPIDInfo
   {
-    SqlConnection            _conn;
+    SqlConnection     _conn;
     static BarCodeInfo       _barCodeInfo;
     static BarCodeGlassInfo  _barCodeGlassInfo;
-    CombinationReject        _CR;                      // Комбинкация брака
-    int?                     _idBarCode   = null;      // Текущий id баркода
-    bool                     _isAlredyFillProcessing,  // Флаг для исключения бесконечной рекурсии, при пересоздании GlassProcessing?
-                             _isAlredyParking;         // Флаг для исключения бесконечной рекурсии, при выполнении PiramidParking?
+    CombinationReject _CR;   // Комбинкация брака
+
+    int?             _idBarCode   = null;     // Текущий id баркода
+    bool             _isAlredyFillProcessing, // Флаг для исключения бесконечной рекурсии, при пересоздании GlassProcessing?
+                     _isAlredyParking;        // Флаг для исключения бесконечной рекурсии, при выполнении PiramidParking?
 
     public BarCodeInfo      GetBarCodeInfo      => _barCodeInfo;
     public BarCodeGlassInfo GetBarCodeGlassInfo => _barCodeGlassInfo;
@@ -52,7 +53,7 @@ namespace NoPaper.Controllers
       // если прочитали то создаем объект баркода
       if (reader.Read())
       {
-        int ID       = Convert.ToInt32(reader["ID"].ToString());
+        int ID       = SafeConvert.ToInt(reader["ID"]);
         _barCodeInfo = new BarCodeInfo(ID, barCode);
         _idBarCode   = ID;  // Записываем id текущего баркода
         reader.Close();
@@ -65,9 +66,9 @@ namespace NoPaper.Controllers
 
         if (reader.Read())
         {
-          int ID             = Convert.ToInt32(reader["ID"           ].ToString());
-          int idProjectItem  = Convert.ToInt32(reader["idProjectItem"].ToString());
-          int idBarCode      = Convert.ToInt32(reader["idBarCode"    ].ToString());
+          int ID             = SafeConvert.ToInt(reader["ID"           ]);
+          int idProjectItem  = SafeConvert.ToInt(reader["idProjectItem"]);
+          int idBarCode      = SafeConvert.ToInt(reader["idBarCode"    ]);
           _idBarCode         = idBarCode;  // Записываем id текущего баркода
 
           _barCodeGlassInfo   = new BarCodeGlassInfo(ID, barCode, idBarCode, idProjectItem);
@@ -152,7 +153,7 @@ namespace NoPaper.Controllers
     /// <param name="barCodeGlassInfo">информация о штриходе стекла</param>
     /// <param name="operatorInfo">Информация о операторе</param>
     /// <returns>Поток создания заказа на переделку</returns>
-    public async Task SetDefectByBarCode(string connectionString, int SPID, BarCodeInfo barCodeInfo, BarCodeGlassInfo barCodeGlassInfo, OperatorInfo operatorInfo, int idOperator_Guilty = 0)
+    public async Task SetDefectByBarCode(string connectionString, int SPID, BarCodeInfo barCodeInfo, BarCodeGlassInfo barCodeGlassInfo, OperatorInfo operatorInfo, int idPersonnel_Guilty = 0)
     {
       using (SqlConnection asyncConnection = new SqlConnection(connectionString))
       {
@@ -160,8 +161,10 @@ namespace NoPaper.Controllers
 
         // Команда для присвоения брака
         string defectCommand = barCodeInfo != null
-                             ? $"update BarCode       set nState = IsNull(nState, 0) | 512, idGuiltyOperator = @idGuiltyOperator where lower(BarCode) = @barcode"
-                             : $"update BarCode_Glass set nState = IsNull(nState, 0) | 512 where ID = @ID ";
+                             ? $"update BarCode       set nState = IsNull(nState, 0) | 512, idPersonnel_Guilty = @idPersonnelGuilty where lower(BarCode) = @barcode and (IsNull(nState, 0) & 512) != 512"
+                             : $"update BarCode_Glass set nState = IsNull(nState, 0) | 512 where ID = @ID and (IsNull(nState, 0) & 512) != 512";
+
+        log.Info($"Команда брака: {defectCommand}");
 
         // Присваиваем признак брака
         using (SqlCommand command = new SqlCommand(defectCommand, asyncConnection))
@@ -170,14 +173,22 @@ namespace NoPaper.Controllers
           {
             command.Parameters.Add("@BarCode", SqlDbType.VarChar).Value = barCodeInfo.barCode.ToLower();
             // idGuiltyOperator: если 0 → NULL
-            command.Parameters.Add("@idGuiltyOperator", SqlDbType.Int).Value = idOperator_Guilty != 0
-                                                                             ? (object)idOperator_Guilty
-                                                                             : DBNull.Value;
+            command.Parameters.Add("@idPersonnelGuilty", SqlDbType.Int).Value = idPersonnel_Guilty != 0
+                                                                              ? (object)idPersonnel_Guilty
+                                                                              : DBNull.Value;
           }
           else
             command.Parameters.Add("@ID", SqlDbType.Int).Value = barCodeGlassInfo.ID;
 
-          await command.ExecuteNonQueryAsync();
+
+          int affected = await command.ExecuteNonQueryAsync();
+
+          if (affected == 0)
+          {
+            log.Warn($"Попытка забраковать уже забракованное изделие  BarCode: {barCodeInfo?.barCode}, BarCode_Glass: {barCodeGlassInfo?.barCode} ");
+            return;
+          }
+
 
           // Очищаем стор
           await ClearTempStore(asyncConnection, SPID, 3);
@@ -196,12 +207,17 @@ namespace NoPaper.Controllers
                                           : $"'{barCodeGlassInfo.idProjectItem}'";
           await command.ExecuteNonQueryAsync();
 
+          log.Info($"Команда для создания переделки: {command.CommandText}");
+
           // Вытягиваем id созданного Task
           command.CommandText = $"select ID from IDTempStore where nType = 100 and SPID = {SPID}";
           object idTaskResult = await command.ExecuteScalarAsync();
 
           if (idTaskResult == null)
+          {
+            log.Error("Заказ на переделку не создан");
             return;
+          }
 
           int idTask = Convert.ToInt32(idTaskResult);
 
@@ -217,6 +233,7 @@ namespace NoPaper.Controllers
           }
         }
       }
+      log.Info("Переделка успешно создана");
     }
 
     /// <summary>
@@ -486,16 +503,17 @@ namespace NoPaper.Controllers
         {
           conn.Open();
           SqlCommand command = new SqlCommand($@"update BarCode set
-                                                   TimeScan = GetDate(),
-                                                   nState   = nState | 128
-                                                 where ID = {idBarCode}",
-                                              conn);
+                                               TimeScan = GetDate(),
+                                               nState   = nState | 128
+                                              where ID = {idBarCode}",
+                                             conn);
 
           command.ExecuteNonQuery();
         }
       }
       catch
       {
+
       }
     }
 
@@ -531,6 +549,7 @@ namespace NoPaper.Controllers
         command.CommandText = ($@"insert into CombinationReject(idRejectType,             idReject,       idRejectPlace,       idRejectAct,       idTypeExpense,  CommentReject)
                                                         values ({_CR.IDRejectType}, {_CR.IDReject}, {_CR.IDRejectPlace}, {_CR.IDRejectAct}, {_CR.IDTypeExpense}, @CommentReject)
                                   select Scope_Identity()"); // Получение ID новой записи
+
         // Выполним insert и получаем ID новой комбинации
         idCombinationReject = Convert.ToInt32(await command.ExecuteScalarAsync()); 
       }
