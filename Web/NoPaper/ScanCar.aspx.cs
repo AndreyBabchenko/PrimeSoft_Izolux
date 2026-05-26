@@ -10,6 +10,7 @@ using System.Configuration;
 using System.Web.UI.WebControls;
 using Utils;
 using log4net;
+using System.Xml.Linq;
 
 namespace NoPaper
 {
@@ -22,8 +23,10 @@ namespace NoPaper
     private static int    m_idOperator              = 0,  // ID Оператора
                           m_idTripTransport         = 0,  // ID Машины
                           m_BarCodeShipLength       = 0;  // Длина штрихкода
+    private static int    m_PyramidBarCodeLength = 0;
     private static string m_sBarCodePrefixOperator  = ""; // Префикс штрихкода оператора
     public  static string m_sBarCodePrefixShip      = ""; // Префикс штрихкода отгрузки
+    public static string m_sPyramidBarCodePrefix = ""; // Префикс пирамиды
 
     protected void Page_Load(object sender, EventArgs e)
     {
@@ -65,17 +68,19 @@ namespace NoPaper
           result = new Tuple<bool, string, int>(false, "Требуется ввести отгрзку", (int)ETypeBarCode.e_type_unknow);
 
 
-        if (String.IsNullOrEmpty(m_sBarCodePrefixShip))
+        if (String.IsNullOrEmpty(m_sBarCodePrefixShip) || String.IsNullOrEmpty(m_sPyramidBarCodePrefix))
           LoadConfig();
 
         string operBarCodePrefix = barcode.Substring(0, m_sBarCodePrefixOperator.Length).ToLower();
+        string pyramidBarCodePrefix = barcode.Substring(0, m_sPyramidBarCodePrefix.Length).ToLower();
         bool   bScanShip         = barcode.Substring(0, m_sBarCodePrefixShip.Length).ToLower() == m_sBarCodePrefixShip.ToLower(); // Баркод отгрузки
 
         if (operBarCodePrefix == m_sBarCodePrefixOperator && barcode.Length > 0)
           result = SetOperator(barcode);
         else if (bScanShip)
           result = WriteBarCodeShip(barcode); // Сканирована отгрузка
-
+        else if (pyramidBarCodePrefix == m_sPyramidBarCodePrefix.ToLower() && barcode.Length > 0)
+          result = WriteTransportPyramid(barcode);
 
         return new
         {
@@ -142,6 +147,53 @@ namespace NoPaper
       catch (Exception ex)
       {
         return new Tuple<bool, string, int>(false, ex.Message, (int)ETypeBarCode.e_type_unknow);
+      }
+    }
+
+    [WebMethod]
+    public static Tuple<bool, string, int> WriteTransportPyramid(string barcodeText)
+    {
+      try
+      {
+        log.Info($"Сканирование возврата транспортной пирамиды: {barcodeText}");
+
+        int idPyramidOut = 0;
+
+        using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["GlassConnectionString"].ConnectionString))
+        {
+          conn.Open();
+          string commandText = $@"select
+                                     max(PO.ID) as idPyramidOut
+                                  from PyramidCompleted PC
+                                  inner join PyramidOut PO on PO.ID                = PC.idPyramidOut
+                                  left  join BarCode B     on B.idPyramidCompleted = PC.ID
+                                  where PO.Barcode = @barcode";
+
+          using (SqlCommand command = new SqlCommand(commandText, conn))
+          {
+            command.Parameters.AddWithValue("@barcode", barcodeText);
+
+            using (SqlDataReader reader = command.ExecuteReader())
+            {
+              if (reader.Read())
+              {
+                idPyramidOut = SafeConvert.ToInt(reader["idPyramidOut"]);
+              }
+            }
+          }
+
+          if (idPyramidOut != 0)
+          {
+            SQLHelper.ExecuteCommand($"update PyramidOut set bReturned = 1, DateReturn = GetDate() where ID = {idPyramidOut}", conn);
+          }
+
+          return new Tuple<bool, string, int>(true, $"Возврат пирамиды {barcodeText}", (int)ETypeBarCode.e_type_pyramid);
+        }
+      }
+      catch
+      {
+        log.Error($"Ошибка при возврате пирамиды {barcodeText}");
+        return new Tuple<bool, string, int>(false, $"Ошибка при возврате пирамиды {barcodeText}", (int)ETypeBarCode.e_type_pyramid);
       }
     }
 
@@ -221,19 +273,30 @@ namespace NoPaper
 
     public static void LoadConfig()
     {
-      string json = ConfigurationManager.AppSettings["ShipRules"];
+      string shipRulesJson = ConfigurationManager.AppSettings["ShipRules"];
 
-      if (string.IsNullOrEmpty(json))
-        return;
-
-      var rules = JsonConvert.DeserializeObject<List<ShipRule>>(json);
-
-      if (rules != null && rules.Count > 0)
+      if (!string.IsNullOrEmpty(shipRulesJson))
       {
-        var rule = rules[0]; 
+        var rules = JsonConvert.DeserializeObject<List<ShipRule>>(shipRulesJson);
 
-        m_sBarCodePrefixShip = rule.prefix;
-        m_BarCodeShipLength  = rule.length; // если ты реально хочешь length сюда
+        if (rules != null && rules.Count > 0)
+        {
+          var rule = rules[0];
+
+          m_sBarCodePrefixShip = rule.prefix;
+          m_BarCodeShipLength = rule.length; // если ты реально хочешь length сюда
+        }
+      }
+
+      string barCodeRulesJson = ConfigurationManager.AppSettings["BarCodeRules"];
+      if (!string.IsNullOrEmpty(barCodeRulesJson))
+      {
+        var rules = JsonConvert.DeserializeObject<List<ShipRule>>(barCodeRulesJson);
+        if (rules != null && rules.Count > 0)
+        {
+          m_sPyramidBarCodePrefix = rules[0].prefix;
+          m_PyramidBarCodeLength = rules[0].length;
+        }
       }
     }
 
