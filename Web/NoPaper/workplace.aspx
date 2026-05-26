@@ -527,6 +527,6 @@
   <script src="./Java/RemakeModal.js?v=7"></script>  
   <script src="./Java/Draw.js?v=16"></script>
   <script src="./Java/Messages.js?v=3"></script>
-  <script src="./Java/Component/OperatorList.js?v=1"></script>
+  <script src="./Java/Component/OperatorList.js?v=2"></script>
 </body>
 </html>

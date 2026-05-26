@@ -19,7 +19,6 @@ namespace NoPaper.Models
     public bool bTeam { get; set; }
     public int idPersonnel { get; set; }
 
-
     private static readonly ILog log = LogManager.GetLogger(typeof(OperatorInfo));
 
     public OperatorInfo()

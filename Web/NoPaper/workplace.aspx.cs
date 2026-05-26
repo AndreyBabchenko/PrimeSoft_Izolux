@@ -1179,29 +1179,29 @@ namespace NoPaper
             }
 
           case "OnMakePyramid":
+          {
+            string[] commandArgs           = e.CommandArgument.ToString().Split('_');
+
+            string sIdGlassProcessingPyramid = commandArgs[0];
+            int    idPiramid                 = SafeConvert.ToInt(commandArgs[1]);
+            int    idOperator                = SafeConvert.ToInt(ddListPerson.SelectedValue);
+            OperatorInfo operatorInfo        = _operatorInfoList.FirstOrDefault(o => o.ID == idOperator);
+
+            if (sIdGlassProcessingPyramid.Length == 0)
             {
-              string[] commandArgs           = e.CommandArgument.ToString().Split('_');
-
-              string sIdGlassProcessingPyramid = commandArgs[0];
-              int    idPiramid                 = SafeConvert.ToInt(commandArgs[1]);
-              int    idOperator                = SafeConvert.ToInt(ddListPerson.SelectedValue);
-              OperatorInfo operatorInfo        = _operatorInfoList.FirstOrDefault(o => o.ID == idOperator);
-
-              if (sIdGlassProcessingPyramid.Length == 0)
-              {
-                ShowMessage("Операция не возможна, не назначены пирамиды на операции", false);
-                return;
-              }
-
-              // Проверяем запросы выполнются 
-              bool isSuccess = glassProcessingController.MakePyramid(operatorInfo, sIdGlassProcessingPyramid, idPiramid, currentScanIdPyramidBarCode, _curentSectorManufact);
-              _currentOperatorInfo = operatorInfo;
-
-              if (!isSuccess)
-                ShowMessage("Операция не возможна, не введен Штрих-код", false);
-
-              break;
+              ShowMessage("Операция не возможна, не назначены пирамиды на операции", false);
+              return;
             }
+
+            // Проверяем запросы выполнются 
+            bool isSuccess = glassProcessingController.MakePyramid(operatorInfo, sIdGlassProcessingPyramid, idPiramid, currentScanIdPyramidBarCode, _curentSectorManufact);
+            _currentOperatorInfo = operatorInfo;
+
+            if (!isSuccess)
+              ShowMessage("Операция не возможна, не введен Штрих-код", false);
+
+            break;
+          }
 
           case "OnWritePyramidBarCode":
           {

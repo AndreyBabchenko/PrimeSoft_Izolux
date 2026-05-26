@@ -116,24 +116,32 @@ const OperatorList = (function () {
       return;
     }
 
-    const allowedSet = new Set();
+    const allowedMap = new Map();
 
     for (const item of currentGroup) {
 
       const key = normalizeName(item.fio);
 
-      allowedSet.add(key);
+      const opt = operatorMap.get(key);
+
+      if (!opt) {
+        console.warn(`${key} not found in operator list`);
+        continue;
+      }
+
+      allowedMap.set(key, {
+        value: opt.value,
+        text: opt.text,
+        idSheduleOperator: opt.getAttribute("idsheduleoperator"),
+        coef: item.coef
+      });
 
       if (!operatorMap.has(key)) {
         console.warn(`${key} not found in operator list`);
       }
     }
 
-    const filtered = originalOptions.filter(x => {
-      return allowedSet.has(
-        normalizeName(x.text)
-      );
-    });
+    const filtered = Array.from(allowedMap.values());
 
     renderOperators(filtered);
   }
@@ -152,10 +160,8 @@ const OperatorList = (function () {
       opt.text = item.text;
 
       if (item.idSheduleOperator != null) {
-        opt.setAttribute(
-          "idsheduleoperator",
-          item.idSheduleOperator
-        );
+        opt.setAttribute("idsheduleoperator", item.idSheduleOperator);
+        opt.setAttribute("data-coef", item.coef ?? 0);
       }
 
       ddOperator.appendChild(opt);
