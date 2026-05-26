@@ -109,6 +109,7 @@
     <Content Include="images\fail.png" />
     <Content Include="images\plot.png" />
     <Content Include="images\success.png" />
+    <Content Include="Java\Component\OperatorList.js" />
     <Content Include="Java\CustomError.js" />
     <Content Include="Java\Defect.js" />
     <Content Include="Java\Plot.js" />
@@ -131,7 +132,6 @@
     <Content Include="Plot.aspx" />
     <Content Include="css\styles.css" />
     <Content Include="ScanMovement.aspx" />
-    <Content Include="SQL\Glass\View\v_SawTaskGlassProcessing.sql" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
@@ -147,7 +147,9 @@
     <Compile Include="Controllers\SectorManufactController.cs" />
     <Content Include="css\draw.css" />
     <Compile Include="Helpers\CommandConfigurator.cs" />
+    <Compile Include="Helpers\ConfigHandler.cs" />
     <Compile Include="Helpers\SafeConvert.cs" />
+    <Compile Include="Helpers\SQLHelper.cs" />
     <Compile Include="Models\PlotInfo.cs" />
     <Compile Include="Models\ScanResponse.cs" />
     <Compile Include="Models\GlassProcessingInfo.cs" />
@@ -258,6 +260,7 @@
     <Content Include=".editorconfig" />
     <Content Include="Site.Master" />
     <Content Include="Java\Data\teamconfig.json" />
+    <Content Include="ConfigHandler.ashx" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
@@ -274,6 +277,7 @@
   <ItemGroup>
     <Folder Include="Java\Pages\" />
     <Folder Include="Properties\PublishProfiles\" />
+    <Folder Include="SQL\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

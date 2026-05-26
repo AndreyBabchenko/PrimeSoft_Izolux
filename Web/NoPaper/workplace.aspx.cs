@@ -13,6 +13,7 @@ using System.Data.SqlClient;
 using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.EnterpriseServices;
+using System.IO;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Policy;
@@ -22,6 +23,7 @@ using System.Web.Script.Services;
 using System.Web.Services;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using System.Xml.Linq;
 using Utils;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -401,7 +403,7 @@ namespace NoPaper
 
       if (!IsPostBack)
       {
-        LoadOperatorList(ddListBrigadier, "ID", "Name", "bTeam = 1");
+        BindOperatorBrigadirList();
 
         int idSector = 0;
         string sectorParam = Request.QueryString["sector"];
@@ -501,6 +503,20 @@ namespace NoPaper
 
       if ( isSectorChange )
         LoadDataGrid();          // Загрузка данных в таблицы
+    }
+
+    private void BindOperatorBrigadirList()
+    {
+      List<OperatorInfo> brigadiers = new List<OperatorInfo>();
+
+      // 1. "Не назначен"
+      brigadiers.Add(new OperatorInfo(0, "Не назначен"));
+      brigadiers.AddRange(_operatorInfoList.Where(o => o.bTeam));
+
+      ddListBrigadier.DataSource = brigadiers;
+      ddListBrigadier.DataTextField = "Name";
+      ddListBrigadier.DataValueField = "ID";
+      ddListBrigadier.DataBind();
     }
 
     /// <summary>
@@ -622,6 +638,101 @@ namespace NoPaper
           message   = ex.Message,
           isSuccess = false
         };
+      }
+    }
+
+
+    //// Move to api
+    public static object CreateNewOperator(string name, int idBrigadier)
+    {
+      using (SqlConnection conn = new SqlConnection(DbConfig.ConnectionString))
+      {
+        conn.Open();
+
+        name = name.Trim().ToLower();
+
+        int? operatorId = null;
+        int? personnelId = null;
+
+        string commandText = @"select top 1 ID, idPersonnel
+                               from Operator
+                               where lower(Name) = @name";
+
+        using (SqlCommand command = new SqlCommand(commandText,conn))
+        {
+          command.Parameters.AddWithValue("@name", name);
+
+          using (var reader = command.ExecuteReader())
+          {
+            if (reader.Read())
+            {
+              operatorId = Convert.ToInt32(reader["ID"]);
+              return new { id = operatorId }; // уже есть
+            }
+          }
+        }
+
+        commandText = "select top 1 ID from Personnel where lower(Name) = @name";
+
+        using (SqlCommand command = new SqlCommand(commandText, conn))
+        {
+          command.Parameters.AddWithValue("@name", name);
+
+          var result = command.ExecuteScalar();
+
+          if (result != null)
+            personnelId = Convert.ToInt32(result);
+        }
+
+
+        // =========================
+        // CREATE PERSONNEL IF NOT EXISTS
+        // =========================
+
+        if (!personnelId.HasValue)
+        {
+          commandText = @"insert into Personnel (Name, idPersonnelPost, bGuilty)
+                          output inserted.idPersonnel
+                          values (@name, 0, 0)";
+
+          using (SqlCommand command = new SqlCommand(commandText, conn))
+          {
+            command.Parameters.AddWithValue("@name", name);
+            personnelId = (int)command.ExecuteScalar();
+          }
+        }
+
+        // =========================
+        // CREATE OPERATOR
+        // =========================
+        commandText = @"insert into Operator
+                        (
+                          Name,
+                          bScan,
+                          bTeam,
+                          idPersonnel,
+                          idDepName
+                        )
+                        output inserted.ID
+                        values
+                        (
+                        @name,
+                        1,
+                        @bTeam,
+                        @idPersonnel,
+                        15 -- Хардкодом ссылка на склад
+                        )";
+
+        using (SqlCommand command = new SqlCommand(commandText, conn))
+        {
+          command.Parameters.AddWithValue("@name", name);
+          command.Parameters.AddWithValue("@bTeam", 1);
+          command.Parameters.AddWithValue("@idPersonnel", personnelId.Value);
+
+          int newId = (int)command.ExecuteScalar();
+
+          return new { id = newId };
+        }
       }
     }
 

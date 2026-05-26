@@ -16,6 +16,9 @@ namespace NoPaper.Models
     public int    idDepName         { get; private set;}
     public string Name  { get; private set; }
 
+    public bool bTeam { get; set; }
+    public int idPersonnel { get; set; }
+
 
     private static readonly ILog log = LogManager.GetLogger(typeof(OperatorInfo));
 
@@ -27,11 +30,19 @@ namespace NoPaper.Models
       idUser            = 0;
       idDepName         = 0;
       Name              = "";
+      bTeam = false;
+      idPersonnel = 0;
     }
 
     public OperatorInfo(int _ID) : base()
     {
       ID = _ID;
+    }
+
+    public OperatorInfo(int ID, string Name) : base()
+    {
+      this.ID = ID;
+      this.Name = Name;
     }
 
     public OperatorInfo(int _ID, int _idSheduleOperator, int _idUser, int? _idSectorManufact, int _idDepName, string _Name)
@@ -43,6 +54,21 @@ namespace NoPaper.Models
       Name              = _Name;
       idDepName         = _idDepName;
     }
+
+    public OperatorInfo(
+      int _ID,
+      int _idSheduleOperator,
+      int _idUser,
+      int? _idSectorManufact,
+      int _idDepName,
+      string _Name,
+      bool bTeam,
+      int idPersonnel) : this(_ID, _idSheduleOperator, _idUser, _idSectorManufact, _idDepName,  _Name) 
+    {
+      this.idPersonnel = idPersonnel;
+      this.bTeam = bTeam;
+    }
+
 
     /// <summary>
     /// Используем для создание нового записи в таблице SheduleOperator
