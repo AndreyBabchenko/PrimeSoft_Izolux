@@ -642,98 +642,74 @@ namespace NoPaper
     }
 
 
-    //// Move to api
-    public static object CreateNewOperator(string name, int idBrigadier)
+    [WebMethod(EnableSession = true)]
+    public static List<object> GetOperatorGroup(int brigadierId)
     {
+      List<object> result = new List<object>();
+      
+      if (brigadierId == 0)
+      {
+        HttpContext.Current.Session.Remove("CurrentOperatorGroup");
+        HttpContext.Current.Session.Remove("CurrentBrigadier");
+
+        return result;
+      }
       using (SqlConnection conn = new SqlConnection(DbConfig.ConnectionString))
       {
         conn.Open();
 
-        name = name.Trim().ToLower();
+        string sql = @"
+          select
+              O.ID,
+              O.Name,
+              O.idSectorManufact,
+              isnull(SO.ID, 0) as idSheduleOperator,
+              isnull(O.idUser, 0) as idUser,
+              isnull(O.idDepName, 0) as idDepName,
+              isnull(O.bTeam, 0) as bTeam,
+              isnull(O.idPersonnel, 0) as idPersonnel,
+              GI.Coef
+          from OperatorGroup G
+          join OperatorGroupItem GI on GI.idOperatorGroup = G.ID
+          join Operator O on O.ID = GI.idOperator
+          outer apply
+          (
+              select top 1 ID
+              from SheduleOperator SO
+              where SO.idOperator = O.ID
+                and SO.dtBegin <= getdate()
+                and SO.dtEnd >= getdate()
+          ) SO
+          where G.idOperatorBrigadier = @idBrigadier
+          order by O.Name
+         ";
 
-        int? operatorId = null;
-        int? personnelId = null;
-
-        string commandText = @"select top 1 ID, idPersonnel
-                               from Operator
-                               where lower(Name) = @name";
-
-        using (SqlCommand command = new SqlCommand(commandText,conn))
+        using (SqlCommand cmd = new SqlCommand(sql, conn))
         {
-          command.Parameters.AddWithValue("@name", name);
+          cmd.Parameters.AddWithValue("@idBrigadier", brigadierId);
 
-          using (var reader = command.ExecuteReader())
+          using (SqlDataReader reader = cmd.ExecuteReader())
           {
-            if (reader.Read())
+            while (reader.Read())
             {
-              operatorId = Convert.ToInt32(reader["ID"]);
-              return new { id = operatorId }; // уже есть
+              result.Add(new
+              {
+                ID = SafeConvert.ToInt(reader["ID"]),
+                Name = SafeConvert.ToString(reader["Name"]),
+                idSheduleOperator = SafeConvert.ToInt(reader["idSheduleOperator"]),
+                idPersonnel = SafeConvert.ToInt(reader["idPersonnel"]),
+                bTeam = SafeConvert.ToBool(reader["bTeam"]),
+                coef = Convert.ToDouble(reader["Coef"])
+              });
             }
           }
         }
-
-        commandText = "select top 1 ID from Personnel where lower(Name) = @name";
-
-        using (SqlCommand command = new SqlCommand(commandText, conn))
-        {
-          command.Parameters.AddWithValue("@name", name);
-
-          var result = command.ExecuteScalar();
-
-          if (result != null)
-            personnelId = Convert.ToInt32(result);
-        }
-
-
-        // =========================
-        // CREATE PERSONNEL IF NOT EXISTS
-        // =========================
-
-        if (!personnelId.HasValue)
-        {
-          commandText = @"insert into Personnel (Name, idPersonnelPost, bGuilty)
-                          output inserted.idPersonnel
-                          values (@name, 0, 0)";
-
-          using (SqlCommand command = new SqlCommand(commandText, conn))
-          {
-            command.Parameters.AddWithValue("@name", name);
-            personnelId = (int)command.ExecuteScalar();
-          }
-        }
-
-        // =========================
-        // CREATE OPERATOR
-        // =========================
-        commandText = @"insert into Operator
-                        (
-                          Name,
-                          bScan,
-                          bTeam,
-                          idPersonnel,
-                          idDepName
-                        )
-                        output inserted.ID
-                        values
-                        (
-                        @name,
-                        1,
-                        @bTeam,
-                        @idPersonnel,
-                        15 -- Хардкодом ссылка на склад
-                        )";
-
-        using (SqlCommand command = new SqlCommand(commandText, conn))
-        {
-          command.Parameters.AddWithValue("@name", name);
-          command.Parameters.AddWithValue("@bTeam", 1);
-          command.Parameters.AddWithValue("@idPersonnel", personnelId.Value);
-
-          int newId = (int)command.ExecuteScalar();
-
-          return new { id = newId };
-        }
       }
+
+      HttpContext.Current.Session["CurrentOperatorGroup"] = result;
+      HttpContext.Current.Session["CurrentBrigadier"] = brigadierId;
+
+      return result;
     }
 
     /// <summary>
@@ -829,13 +805,17 @@ namespace NoPaper
         _curentSectorManufact = _sectorManufactList.FirstOrDefault(sector => sector.ID == operatorInfo.idSectorManufact);
         _currentOperatorInfo   = _operatorInfoList.FirstOrDefault(oper => oper.ID == operatorInfo.ID );
 
-        if (_currentOperatorInfo.idSheduleOperator == 0)
-          using (SqlConnection conn = new SqlConnection(DbConfig.ConnectionString))
+        using (SqlConnection conn = new SqlConnection(DbConfig.ConnectionString))
+        {
+          conn.Open();
+          OperatorInfo.CreateShedulePersonnel(conn);
+
+          if (_currentOperatorInfo.idSheduleOperator == 0)
           {
-            conn.Open();
             _currentOperatorInfo.idSheduleOperator = OperatorInfo.CreateSheduleOperator(conn, _currentOperatorInfo.ID);
             log.Info($"новый idSheduleOperator: {_currentOperatorInfo.idSheduleOperator}");
           }
+        }
 
          return BarCodeController.PostBarCodeGlass(barcode, _curentSectorManufact, _currentOperatorInfo, currentScanIdPyramidBarCode);
       }
